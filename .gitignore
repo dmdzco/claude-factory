@@ -1,0 +1,32 @@
+# Logs
+logs/
+*.log
+
+# Docker
+.docker/
+
+# Environment files (contain secrets)
+.env
+.env.local
+.env.*.local
+
+# Project-specific configuration (users create from .example)
+factory.conf
+
+# Generated docker-compose (created by setup.sh)
+docker-compose.yml
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor directories
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.bak
