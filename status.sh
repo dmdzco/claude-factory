@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #===============================================================================
-# Donna AI Factory - Status Script
+# Claude Factory - Status Script
 # Shows the current status of all agents and their worktrees
 #===============================================================================
 
@@ -18,8 +18,16 @@ NC='\033[0m' # No Color
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PARENT_DIR="$(dirname "$SCRIPT_DIR")"
-DONNA_REPO="${PARENT_DIR}/donna"
-NUM_AGENTS=5
+
+# Load project configuration
+if [[ -f "${SCRIPT_DIR}/factory.conf" ]]; then
+    source "${SCRIPT_DIR}/factory.conf"
+else
+    echo -e "${RED}[ERROR]${NC} factory.conf not found!"
+    exit 1
+fi
+
+TARGET_REPO_PATH="${PARENT_DIR}/${TARGET_REPO:-$PROJECT_NAME}"
 
 #-------------------------------------------------------------------------------
 # Helper Functions
@@ -34,7 +42,7 @@ print_header() {
 }
 
 status_icon() {
-    if [[ "$1" == "true" || "$1" == "running" ]]; then
+    if [[ "$1" == "true" || "$1" == "running" || "$1" == "yes" ]]; then
         echo -e "${GREEN}●${NC}"
     else
         echo -e "${RED}○${NC}"
@@ -52,7 +60,7 @@ check_docker_status() {
     printf "%-20s %-12s %-15s %-20s\n" "─────────" "──────" "──────" "─────"
 
     for i in $(seq 1 $NUM_AGENTS); do
-        local container="donna-agent-${i}"
+        local container="${PROJECT_NAME}-agent-${i}"
         local status="stopped"
         local uptime="-"
         local image="-"
@@ -73,19 +81,19 @@ check_docker_status() {
 check_worktree_status() {
     print_header "Git Worktree Status"
 
-    if [[ ! -d "$DONNA_REPO" ]]; then
-        echo -e "${RED}Donna repository not found!${NC}"
+    if [[ ! -d "$TARGET_REPO_PATH" ]]; then
+        echo -e "${RED}Target repository not found: ${TARGET_REPO_PATH}${NC}"
         return
     fi
 
-    cd "$DONNA_REPO"
+    cd "$TARGET_REPO_PATH"
 
     printf "%-20s %-10s %-30s %-15s\n" "WORKTREE" "EXISTS" "BRANCH" "STATUS"
     printf "%-20s %-10s %-30s %-15s\n" "────────" "──────" "──────" "──────"
 
     for i in $(seq 1 $NUM_AGENTS); do
-        local worktree_path="${PARENT_DIR}/donna-agent-${i}"
-        local name="donna-agent-${i}"
+        local worktree_path="${PARENT_DIR}/${PROJECT_NAME}-agent-${i}"
+        local name="${PROJECT_NAME}-agent-${i}"
         local exists="no"
         local branch="-"
         local status="-"
@@ -94,7 +102,22 @@ check_worktree_status() {
             exists="yes"
 
             if [[ -d "${worktree_path}/.git" ]] || [[ -f "${worktree_path}/.git" ]]; then
-                branch=$(cd "$worktree_path" && git branch --show-current 2>/dev/null || echo "detached")
+                # Get branch from host filesystem directly (not from container)
+                branch=$(cd "$worktree_path" && git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "detached")
+
+                # If HEAD is detached, check if we're on a known branch commit
+                if [[ "$branch" == "HEAD" ]]; then
+                    # Try to find matching branch
+                    local current_commit=$(cd "$worktree_path" && git rev-parse HEAD 2>/dev/null)
+                    local expected_branch="feat/agent-${i}-workspace"
+                    local branch_commit=$(git rev-parse "$expected_branch" 2>/dev/null || echo "")
+
+                    if [[ "$current_commit" == "$branch_commit" ]]; then
+                        branch="${expected_branch} (detached)"
+                    else
+                        branch="detached"
+                    fi
+                fi
 
                 # Get working tree status
                 local changes=$(cd "$worktree_path" && git status --porcelain 2>/dev/null | wc -l | tr -d ' ')
@@ -106,7 +129,13 @@ check_worktree_status() {
             fi
         fi
 
-        local icon=$(status_icon "$exists")
+        # Use green icon if exists and has a valid branch
+        local icon_status="no"
+        if [[ "$exists" == "yes" ]] && [[ "$branch" != "-" ]] && [[ "$branch" != "detached" ]]; then
+            icon_status="yes"
+        fi
+
+        local icon=$(status_icon "$icon_status")
         printf "%s %-18s %-10s %-30s %-15s\n" "$icon" "$name" "$exists" "${branch:0:30}" "$status"
     done
 
@@ -121,7 +150,7 @@ check_worktree_status() {
 check_resource_usage() {
     print_header "Resource Usage"
 
-    local running_containers=$(docker ps --filter "name=donna-agent" --format '{{.Names}}' | wc -l | tr -d ' ')
+    local running_containers=$(docker ps --filter "name=${PROJECT_NAME}-agent" --format '{{.Names}}' | wc -l | tr -d ' ')
 
     if [[ "$running_containers" -eq 0 ]]; then
         echo "No agents running"
@@ -130,7 +159,7 @@ check_resource_usage() {
 
     echo -e "${BLUE}Container Resources:${NC}"
     docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}" \
-        $(docker ps --filter "name=donna-agent" --format '{{.Names}}') 2>/dev/null || echo "  (stats unavailable)"
+        $(docker ps --filter "name=${PROJECT_NAME}-agent" --format '{{.Names}}') 2>/dev/null || echo "  (stats unavailable)"
 
     echo ""
 }
@@ -161,7 +190,7 @@ show_quick_commands() {
     echo "Send to one agent:    ./dispatch.sh --agent 1 \"Task\""
     echo "Interactive session:  ./dispatch.sh --agent 1 --interactive"
     echo "View logs:            docker compose logs -f agent-1"
-    echo "Access shell:         docker exec -it donna-agent-1 bash"
+    echo "Access shell:         docker exec -it ${PROJECT_NAME}-agent-1 bash"
     echo "Stop all agents:      ./teardown.sh"
     echo ""
 }
@@ -173,7 +202,8 @@ show_quick_commands() {
 main() {
     echo ""
     echo -e "${CYAN}╔═══════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║          DONNA AI FACTORY - STATUS DASHBOARD                  ║${NC}"
+    echo -e "${CYAN}║          CLAUDE FACTORY - STATUS DASHBOARD                    ║${NC}"
+    echo -e "${CYAN}║          Project: ${PROJECT_NAME}$(printf '%*s' $((38 - ${#PROJECT_NAME})) '')║${NC}"
     echo -e "${CYAN}╚═══════════════════════════════════════════════════════════════╝${NC}"
 
     check_docker_status
