@@ -1,44 +1,45 @@
 #!/usr/bin/env bash
 #===============================================================================
-# Donna AI Factory - Teardown Script
-# Gracefully shuts down agents and optionally removes worktrees
+# Claude Factory - Teardown Script
+# Removes worktrees and optionally branches
 #===============================================================================
 
 set -euo pipefail
 
-# Colors for output
+# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 CYAN='\033[0;36m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PARENT_DIR="$(dirname "$SCRIPT_DIR")"
-DONNA_REPO="${PARENT_DIR}/donna"
-NUM_AGENTS=5
+
+# Load project configuration
+if [[ -f "${SCRIPT_DIR}/factory.conf" ]]; then
+    source "${SCRIPT_DIR}/factory.conf"
+else
+    echo -e "${RED}[ERROR]${NC} factory.conf not found! Run ./configure.sh first."
+    exit 1
+fi
+
+# Support both new-style (TARGET_REPO_PATH) and old-style (TARGET_REPO) config
+if [[ -z "${TARGET_REPO_PATH:-}" ]]; then
+    PARENT_DIR="$(dirname "$SCRIPT_DIR")"
+    TARGET_REPO_PATH="${PARENT_DIR}/${TARGET_REPO:-$PROJECT_NAME}"
+fi
+REPO_PARENT_DIR="$(dirname "$TARGET_REPO_PATH")"
 
 #-------------------------------------------------------------------------------
 # Helper Functions
 #-------------------------------------------------------------------------------
 
-log_info() {
-    echo -e "${BLUE}[INFO]${NC} $1"
-}
-
-log_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
-}
-
-log_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
-}
-
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
+log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
+log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
+log_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
 print_header() {
     echo ""
@@ -50,18 +51,17 @@ print_header() {
 
 print_usage() {
     cat << EOF
-${CYAN}Donna AI Factory - Teardown Script${NC}
+${CYAN}Claude Factory - Teardown Script${NC}
 
 Usage:
   $(basename "$0") [OPTIONS]
 
 Options:
-  --containers-only    Only stop containers, keep worktrees
-  --full               Stop containers AND remove worktrees
+  --full               Remove worktrees AND delete branches + coordination state
   --force              Skip confirmation prompts
   -h, --help           Show this help message
 
-Default behavior: Stop containers only (worktrees preserved)
+Default behavior: Remove worktrees only (branches preserved)
 
 EOF
 }
@@ -70,47 +70,17 @@ EOF
 # Teardown Functions
 #-------------------------------------------------------------------------------
 
-stop_containers() {
-    print_header "Stopping Docker Containers"
-
-    cd "$SCRIPT_DIR"
-
-    # Check if any containers are running
-    local running=$(docker compose ps -q 2>/dev/null | wc -l | tr -d ' ')
-
-    if [[ "$running" -eq 0 ]]; then
-        log_info "No containers running"
-        return 0
-    fi
-
-    log_info "Stopping ${running} container(s)..."
-
-    if docker compose down 2>&1; then
-        log_success "All containers stopped"
-    else
-        log_warning "Some containers may not have stopped cleanly"
-    fi
-
-    # Verify all stopped
-    local still_running=$(docker ps --filter "name=donna-agent" -q 2>/dev/null | wc -l | tr -d ' ')
-    if [[ "$still_running" -gt 0 ]]; then
-        log_warning "${still_running} container(s) still running, forcing stop..."
-        docker ps --filter "name=donna-agent" -q | xargs -r docker stop
-        docker ps --filter "name=donna-agent" -q | xargs -r docker rm -f
-    fi
-}
-
 check_uncommitted_changes() {
     local has_changes=false
 
     for i in $(seq 1 $NUM_AGENTS); do
-        local worktree_path="${PARENT_DIR}/donna-agent-${i}"
+        local worktree_path="${REPO_PARENT_DIR}/${PROJECT_NAME}-agent-${i}"
 
         if [[ -d "$worktree_path" ]]; then
             local changes=$(cd "$worktree_path" && git status --porcelain 2>/dev/null | wc -l | tr -d ' ')
             if [[ "$changes" -gt 0 ]]; then
                 has_changes=true
-                log_warning "donna-agent-${i} has ${changes} uncommitted change(s)"
+                log_warning "${PROJECT_NAME}-agent-${i} has ${changes} uncommitted change(s)"
             fi
         fi
     done
@@ -118,7 +88,7 @@ check_uncommitted_changes() {
     if [[ "$has_changes" == "true" ]]; then
         echo ""
         log_warning "Some worktrees have uncommitted changes!"
-        log_warning "These will be LOST if you proceed with --full teardown"
+        log_warning "These will be LOST if you proceed."
         return 1
     fi
 
@@ -128,31 +98,29 @@ check_uncommitted_changes() {
 remove_worktrees() {
     print_header "Removing Git Worktrees"
 
-    if [[ ! -d "$DONNA_REPO" ]]; then
-        log_error "Donna repository not found at: $DONNA_REPO"
+    if [[ ! -d "$TARGET_REPO_PATH" ]]; then
+        log_error "Target repository not found at: $TARGET_REPO_PATH"
         return 1
     fi
 
-    cd "$DONNA_REPO"
+    cd "$TARGET_REPO_PATH"
 
     for i in $(seq 1 $NUM_AGENTS); do
-        local worktree_path="${PARENT_DIR}/donna-agent-${i}"
+        local worktree_path="${REPO_PARENT_DIR}/${PROJECT_NAME}-agent-${i}"
 
         if [[ -d "$worktree_path" ]]; then
-            log_info "Removing worktree: donna-agent-${i}"
+            log_info "Removing worktree: ${PROJECT_NAME}-agent-${i}"
 
-            # First try to remove via git
             if git worktree remove "$worktree_path" --force 2>/dev/null; then
-                log_success "Removed worktree: donna-agent-${i}"
+                log_success "Removed worktree: ${PROJECT_NAME}-agent-${i}"
             else
-                # Fallback: manual removal
                 log_warning "Git worktree remove failed, cleaning manually..."
                 rm -rf "$worktree_path"
                 git worktree prune 2>/dev/null || true
-                log_success "Manually removed: donna-agent-${i}"
+                log_success "Manually removed: ${PROJECT_NAME}-agent-${i}"
             fi
         else
-            log_info "Worktree not found: donna-agent-${i}"
+            log_info "Worktree not found: ${PROJECT_NAME}-agent-${i}"
         fi
     done
 
@@ -166,12 +134,11 @@ remove_worktrees() {
 remove_branches() {
     print_header "Cleaning Up Branches"
 
-    cd "$DONNA_REPO"
+    cd "$TARGET_REPO_PATH"
 
     for i in $(seq 1 $NUM_AGENTS); do
         local branch="feat/agent-${i}-workspace"
 
-        # Check if branch exists
         if git show-ref --verify --quiet "refs/heads/${branch}"; then
             log_info "Deleting branch: $branch"
             git branch -D "$branch" 2>/dev/null || log_warning "Could not delete $branch"
@@ -179,16 +146,21 @@ remove_branches() {
     done
 }
 
-cleanup_docker_resources() {
-    print_header "Cleaning Docker Resources"
+remove_coordination_state() {
+    print_header "Cleaning Coordination State"
 
-    log_info "Removing donna-factory network..."
-    docker network rm donna-factory-network 2>/dev/null || true
+    local state_file="${SCRIPT_DIR}/factory-state.json"
+    local lock_file="${state_file}.lock"
 
-    log_info "Removing dangling images..."
-    docker image prune -f 2>/dev/null || true
+    if [[ -f "$state_file" ]]; then
+        rm -f "$state_file"
+        log_success "Removed factory-state.json"
+    fi
 
-    log_success "Docker resources cleaned"
+    if [[ -f "$lock_file" ]]; then
+        rm -f "$lock_file"
+        log_success "Removed lock file"
+    fi
 }
 
 #-------------------------------------------------------------------------------
@@ -196,20 +168,13 @@ cleanup_docker_resources() {
 #-------------------------------------------------------------------------------
 
 main() {
-    local containers_only=true
     local full_teardown=false
     local force=false
 
     # Parse arguments
     while [[ $# -gt 0 ]]; do
         case $1 in
-            --containers-only)
-                containers_only=true
-                full_teardown=false
-                shift
-                ;;
             --full)
-                containers_only=false
                 full_teardown=true
                 shift
                 ;;
@@ -229,17 +194,15 @@ main() {
         esac
     done
 
-    print_header "Donna AI Factory - Teardown"
+    print_header "Claude Factory - Teardown"
 
     if [[ "$full_teardown" == "true" ]]; then
         echo -e "${YELLOW}WARNING: Full teardown will:${NC}"
-        echo "  1. Stop all Docker containers"
-        echo "  2. Remove all Git worktrees"
-        echo "  3. Delete workspace branches"
-        echo "  4. Clean up Docker resources"
+        echo "  1. Remove all Git worktrees"
+        echo "  2. Delete workspace branches"
+        echo "  3. Clear coordination state"
         echo ""
 
-        # Check for uncommitted changes
         if ! check_uncommitted_changes && [[ "$force" != "true" ]]; then
             echo ""
             read -p "Are you sure you want to proceed? (y/N) " -n 1 -r
@@ -257,23 +220,31 @@ main() {
             fi
         fi
 
-        stop_containers
         remove_worktrees
         remove_branches
-        cleanup_docker_resources
+        remove_coordination_state
 
         print_header "Full Teardown Complete"
         echo "To start fresh, run: ./setup.sh"
     else
-        log_info "Stopping containers only (worktrees preserved)"
-        echo "Use --full to also remove worktrees and branches"
+        log_info "Removing worktrees only (branches preserved)"
+        echo "Use --full to also remove branches and coordination state"
         echo ""
 
-        stop_containers
-        cleanup_docker_resources
+        if ! check_uncommitted_changes && [[ "$force" != "true" ]]; then
+            echo ""
+            read -p "Proceed? (y/N) " -n 1 -r
+            echo ""
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                log_info "Teardown cancelled"
+                exit 0
+            fi
+        fi
 
-        print_header "Containers Stopped"
-        echo "Worktrees preserved. To restart, run: docker compose up -d"
+        remove_worktrees
+
+        print_header "Worktrees Removed"
+        echo "Branches preserved. To recreate worktrees, run: ./setup.sh"
     fi
 }
 

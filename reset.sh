@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #===============================================================================
 # Claude Factory - Safe Reset
-# Fixes broken worktree references while preserving all commits
+# Removes worktrees while preserving all commits on branches
 #===============================================================================
 
 set -euo pipefail
@@ -13,18 +13,21 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PARENT_DIR="$(dirname "$SCRIPT_DIR")"
 
 # Load project configuration
 if [[ -f "${SCRIPT_DIR}/factory.conf" ]]; then
     source "${SCRIPT_DIR}/factory.conf"
 else
-    echo -e "${RED}[ERROR]${NC} factory.conf not found!"
-    echo "Copy factory.conf.example to factory.conf and configure it."
+    echo -e "${RED}[ERROR]${NC} factory.conf not found! Run ./configure.sh first."
     exit 1
 fi
 
-TARGET_REPO_PATH="${PARENT_DIR}/${TARGET_REPO:-$PROJECT_NAME}"
+# Support both new-style (TARGET_REPO_PATH) and old-style (TARGET_REPO) config
+if [[ -z "${TARGET_REPO_PATH:-}" ]]; then
+    PARENT_DIR="$(dirname "$SCRIPT_DIR")"
+    TARGET_REPO_PATH="${PARENT_DIR}/${TARGET_REPO:-$PROJECT_NAME}"
+fi
+REPO_PARENT_DIR="$(dirname "$TARGET_REPO_PATH")"
 
 log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
 log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
@@ -38,12 +41,7 @@ echo ""
 echo "Project: ${PROJECT_NAME}"
 echo ""
 
-# Step 1: Stop containers
-log_info "Stopping Docker containers..."
-cd "$SCRIPT_DIR"
-docker compose down 2>/dev/null || true
-
-# Step 2: Show current branches with their commits
+# Step 1: Show current branches with their commits
 log_info "Current agent branches (commits will be preserved):"
 cd "$TARGET_REPO_PATH"
 for i in $(seq 1 $NUM_AGENTS); do
@@ -57,12 +55,12 @@ for i in $(seq 1 $NUM_AGENTS); do
 done
 echo ""
 
-# Step 3: FORCE remove all worktree metadata
+# Step 2: Remove all worktree directories and metadata
 log_info "Removing all worktree references..."
 cd "$TARGET_REPO_PATH"
 
 for i in $(seq 1 $NUM_AGENTS); do
-    dir="${PARENT_DIR}/${PROJECT_NAME}-agent-${i}"
+    dir="${REPO_PARENT_DIR}/${PROJECT_NAME}-agent-${i}"
     worktree_meta=".git/worktrees/${PROJECT_NAME}-agent-${i}"
 
     # Remove the worktree directory
@@ -71,7 +69,7 @@ for i in $(seq 1 $NUM_AGENTS); do
         log_info "  Removed directory: ${PROJECT_NAME}-agent-${i}"
     fi
 
-    # FORCE remove worktree metadata from .git/worktrees/
+    # Remove worktree metadata from .git/worktrees/
     if [[ -d "$worktree_meta" ]]; then
         rm -rf "$worktree_meta"
         log_info "  Removed worktree metadata: ${PROJECT_NAME}-agent-${i}"
@@ -81,21 +79,17 @@ done
 # Prune any remaining stale entries
 git worktree prune 2>/dev/null || true
 
-# Step 4: Delete and recreate branches to fix detached HEAD issues
+# Step 3: Fix any detached branches
 log_info "Fixing any detached branches..."
 cd "$TARGET_REPO_PATH"
-current_branch=$(git branch --show-current)
 
 for i in $(seq 1 $NUM_AGENTS); do
     branch="feat/agent-${i}-workspace"
 
-    # If branch exists, save its commit and recreate it
     if git show-ref --verify --quiet "refs/heads/${branch}" 2>/dev/null; then
-        # Get the commit the branch points to
         branch_commit=$(git rev-parse "$branch" 2>/dev/null || echo "")
 
         if [[ -n "$branch_commit" ]]; then
-            # Delete and recreate the branch at the same commit
             git branch -D "$branch" 2>/dev/null || true
             git branch "$branch" "$branch_commit" 2>/dev/null || true
             log_info "  Fixed branch: $branch"
@@ -103,7 +97,7 @@ for i in $(seq 1 $NUM_AGENTS); do
     fi
 done
 
-# Step 5: Verify branches
+# Step 4: Verify branches
 log_info "Verifying branches are preserved:"
 for i in $(seq 1 $NUM_AGENTS); do
     branch="feat/agent-${i}-workspace"
@@ -115,13 +109,19 @@ for i in $(seq 1 $NUM_AGENTS); do
     fi
 done
 
-# Step 6: Show clean worktree list
+# Step 5: Show clean worktree list
 echo ""
 log_info "Current worktree list:"
 git worktree list
 
+# Step 6: Reset coordination state
+if [[ -f "${SCRIPT_DIR}/factory-state.json" ]]; then
+    log_info "Resetting coordination state..."
+    "${SCRIPT_DIR}/init-coordination.sh"
+fi
+
 echo ""
 log_success "Reset complete! All commits preserved."
 echo ""
-echo "Now run ./setup.sh to recreate worktrees from existing branches."
+echo "Now run ./setup.sh to recreate worktrees."
 echo ""

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #===============================================================================
-# Donna AI Factory - Initialize Coordination
-# Sets up FACTORY.md in the main repo and syncs to all worktrees
+# Claude Factory - Initialize Coordination
+# Creates the factory-state.json file for agent coordination
 #===============================================================================
 
 set -euo pipefail
@@ -10,71 +10,63 @@ set -euo pipefail
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
+RED='\033[0;31m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PARENT_DIR="$(dirname "$SCRIPT_DIR")"
-DONNA_REPO="${PARENT_DIR}/donna"
-NUM_AGENTS=5
 
-log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
-log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
-log_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
-
-echo ""
-echo -e "${CYAN}═══════════════════════════════════════════════════════════════${NC}"
-echo -e "${CYAN}  Initializing Factory Coordination${NC}"
-echo -e "${CYAN}═══════════════════════════════════════════════════════════════${NC}"
-echo ""
-
-# Check if main repo exists
-if [[ ! -d "$DONNA_REPO" ]]; then
-    echo "Error: Donna repository not found at $DONNA_REPO"
+# Load configuration
+if [[ -f "${SCRIPT_DIR}/factory.conf" ]]; then
+    source "${SCRIPT_DIR}/factory.conf"
+else
+    echo -e "${RED}[ERROR]${NC} factory.conf not found! Run ./configure.sh first."
     exit 1
 fi
 
-# Copy FACTORY.md to main repo
-log_info "Copying FACTORY.md to main repository..."
-cp "${SCRIPT_DIR}/FACTORY.md" "${DONNA_REPO}/FACTORY.md"
+log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
+log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
 
-# Commit it
-cd "$DONNA_REPO"
-log_info "Committing FACTORY.md..."
+echo ""
+echo -e "${CYAN}═══════════════════════════════════════════════════════════════${NC}"
+echo -e "${CYAN}  Claude Factory - Initializing Coordination${NC}"
+echo -e "${CYAN}═══════════════════════════════════════════════════════════════${NC}"
+echo ""
 
-# Check if it's already tracked
-if git ls-files --error-unmatch FACTORY.md > /dev/null 2>&1; then
-    log_info "FACTORY.md already tracked, updating..."
-    git add FACTORY.md
-    git commit -m "chore: Update factory coordination file" 2>/dev/null || log_warning "No changes to commit"
-else
-    git add FACTORY.md
-    git commit -m "chore: Add factory coordination file"
+# Check dependencies
+if ! command -v jq &> /dev/null; then
+    echo -e "${RED}[ERROR]${NC} jq is required for the coordination system."
+    echo "Install with: brew install jq (macOS) or apt-get install jq (Linux)"
+    exit 1
 fi
 
-# Push to origin
-log_info "Pushing to origin..."
-git push origin main 2>/dev/null || log_warning "Could not push (offline or no remote?)"
+STATE_FILE="${SCRIPT_DIR}/factory-state.json"
 
-# Sync all worktrees
-log_info "Syncing worktrees..."
+log_info "Creating coordination state for ${NUM_AGENTS} agents..."
+
+# Build agents JSON dynamically
+AGENTS_JSON="{}"
 for i in $(seq 1 $NUM_AGENTS); do
-    worktree="${PARENT_DIR}/donna-agent-${i}"
-    if [[ -d "$worktree" ]]; then
-        log_info "  Syncing donna-agent-${i}..."
-        cd "$worktree"
-        git fetch origin 2>/dev/null || true
-        git rebase origin/main 2>/dev/null || git pull origin main --rebase 2>/dev/null || log_warning "Could not sync agent-${i}"
-    fi
+    AGENTS_JSON=$(echo "$AGENTS_JSON" | jq \
+        --arg id "$i" \
+        --arg branch "feat/agent-${i}-workspace" \
+        '.[$id] = {"status": "idle", "task": "", "branch": $branch, "last_update": ""}')
 done
 
+# Create the full state file
+jq -n --argjson agents "$AGENTS_JSON" '{
+    "agents": $agents,
+    "claims": {},
+    "messages": [],
+    "tasks": {"high": [], "normal": [], "low": []}
+}' > "$STATE_FILE"
+
+log_success "Coordination state initialized!"
 echo ""
-log_success "Coordination initialized!"
+echo "State file: ${STATE_FILE}"
 echo ""
-echo "FACTORY.md is now available in:"
-echo "  - Main repo: ${DONNA_REPO}/FACTORY.md"
-for i in $(seq 1 $NUM_AGENTS); do
-    echo "  - Agent ${i}: ${PARENT_DIR}/donna-agent-${i}/FACTORY.md"
-done
+echo "Agent coordination commands:"
+echo "  ./claim.sh <agent-id> <file>     Claim a file before editing"
+echo "  ./release.sh <agent-id> [file]   Release a claim (or all claims)"
+echo "  ./status.sh                      View current state"
 echo ""
-echo "Agents will now coordinate through this file."

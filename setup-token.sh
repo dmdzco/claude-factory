@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #===============================================================================
-# Donna AI Factory - GitHub Token Setup
+# Claude Factory - GitHub Token Setup
 # Creates a Personal Access Token with write permissions for git push
 #===============================================================================
 
@@ -16,7 +16,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo ""
 echo -e "${BLUE}═══════════════════════════════════════════════════════════════${NC}"
-echo -e "${BLUE}  Donna AI Factory - GitHub Token Setup${NC}"
+echo -e "${BLUE}  Claude Factory - GitHub Token Setup${NC}"
 echo -e "${BLUE}═══════════════════════════════════════════════════════════════${NC}"
 echo ""
 
@@ -50,8 +50,8 @@ echo ""
 echo "  1. Create a new Fine-grained Personal Access Token (recommended)"
 echo "     - Go to: https://github.com/settings/tokens?type=beta"
 echo "     - Click 'Generate new token'"
-echo "     - Name: 'Donna Factory'"
-echo "     - Repository access: Select your 'donna' repository"
+echo "     - Name: 'Claude Factory'"
+echo "     - Repository access: Select your target repository"
 echo "     - Permissions → Repository permissions → Contents: Read and write"
 echo "     - Click 'Generate token' and copy it"
 echo ""
@@ -92,10 +92,8 @@ echo -e "${GREEN}═════════════════════
 echo ""
 echo "Next steps:"
 echo ""
-echo "  1. Restart containers to pick up the new token:"
-echo "     docker compose down && docker compose up -d"
-echo ""
-echo "  2. Open agent terminals:"
+echo "  1. Run setup and open agent terminals:"
+echo "     ./setup.sh"
 echo "     ./dispatch.sh"
 echo ""
 echo -e "${YELLOW}Note: The .env file is in .gitignore and won't be committed.${NC}"

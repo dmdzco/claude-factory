@@ -2,9 +2,6 @@
 logs/
 *.log
 
-# Docker
-.docker/
-
 # Environment files (contain secrets)
 .env
 .env.local
@@ -13,8 +10,8 @@ logs/
 # Project-specific configuration (users create from .example)
 factory.conf
 
-# Generated docker-compose (created by setup.sh)
-docker-compose.yml
+# Coordination state
+factory-state.json
 
 # OS files
 .DS_Store

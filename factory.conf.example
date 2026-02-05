@@ -1,22 +1,22 @@
 #===============================================================================
 # Claude Factory - Configuration Example
-# Copy this file to factory.conf and customize for your project
+#
+# Option 1: Run ./configure.sh to generate this file interactively
+# Option 2: Copy this file to factory.conf and edit manually
 #===============================================================================
 
-# Project name (used for container names, worktree directories, branch names)
+# Project name (used for worktree directories and branch names)
 # Example: If PROJECT_NAME=myapp, creates:
-#   - Containers: myapp-agent-1, myapp-agent-2, ...
-#   - Worktrees:  ../myapp-agent-1/, ../myapp-agent-2/, ...
-#   - Branches:   feat/agent-1-workspace, feat/agent-2-workspace, ...
+#   - Worktrees: ../myapp-agent-1/, ../myapp-agent-2/, ...
+#   - Branches:  feat/agent-1-workspace, feat/agent-2-workspace, ...
 PROJECT_NAME="myapp"
 
+# Absolute path to the target git repository
+# This is the repo your agents will work on
+TARGET_REPO_PATH="/Users/you/code/myapp"
+
 # Number of parallel agents (1-10)
-NUM_AGENTS=5
+NUM_AGENTS=3
 
 # Default Claude model (sonnet, opus, haiku)
 DEFAULT_MODEL="sonnet"
-
-# Target repository folder name (relative to parent directory)
-# This is the main repo that worktrees will be created from
-# Usually the same as PROJECT_NAME
-TARGET_REPO="${PROJECT_NAME}"
