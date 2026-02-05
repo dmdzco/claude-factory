@@ -154,6 +154,33 @@ create_worktree() {
 
     log_info "Creating worktree for: $(basename "$worktree_path")"
 
+    # Check if the branch is already checked out in another worktree
+    local existing_worktree
+    existing_worktree=$(git worktree list --porcelain | awk -v branch="refs/heads/${branch_name}" '
+        /^worktree / { wt = substr($0, 10) }
+        $0 == "branch " branch { print wt }
+    ')
+
+    if [[ -n "$existing_worktree" ]]; then
+        if [[ "$existing_worktree" == "$worktree_path" ]]; then
+            log_info "  Worktree already exists at the correct path"
+            log_success "Verified worktree: $(basename "$worktree_path")"
+            return 0
+        fi
+
+        log_warning "  Branch '$branch_name' is already used by worktree at: $existing_worktree"
+
+        if [[ -d "$existing_worktree" ]]; then
+            log_info "  Removing stale worktree at: $existing_worktree"
+            git worktree remove "$existing_worktree" --force 2>/dev/null || {
+                log_warning "  git worktree remove failed, cleaning manually..."
+                rm -rf "$existing_worktree"
+            }
+        fi
+        git worktree prune 2>/dev/null || true
+        log_success "  Cleared stale worktree reference"
+    fi
+
     if git show-ref --verify --quiet "refs/heads/${branch_name}"; then
         log_info "  Using existing local branch: $branch_name"
         git worktree add "$worktree_path" "$branch_name"
