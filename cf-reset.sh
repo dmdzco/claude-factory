@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #===============================================================================
 # Claude Factory - Reset Worktrees
-# Removes all agent worktrees (including stale/moved ones) while preserving
-# branch commits. Run ./setup.sh afterwards to recreate them cleanly.
+# Removes all droid worktrees (including stale/moved ones) while preserving
+# branch commits. Run ./cf-setup.sh afterwards to recreate them cleanly.
 #===============================================================================
 
 set -euo pipefail
@@ -20,7 +20,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ -f "${SCRIPT_DIR}/factory.conf" ]]; then
     source "${SCRIPT_DIR}/factory.conf"
 else
-    echo -e "${RED}[ERROR]${NC} factory.conf not found! Run ./configure.sh first."
+    echo -e "${RED}[ERROR]${NC} factory.conf not found! Run ./cf-configure.sh first."
     exit 1
 fi
 
@@ -52,11 +52,11 @@ Usage:
   $(basename "$0") [OPTIONS]
 
 Options:
-  --delete-branches    Also delete the agent branches (commits will be lost)
+  --delete-branches    Also delete the droid branches (commits will be lost)
   --force              Skip confirmation prompts
   -h, --help           Show this help message
 
-Default behavior: Remove all agent worktrees, preserve branches and commits.
+Default behavior: Remove all droid worktrees, preserve branches and commits.
 EOF
 }
 
@@ -64,48 +64,48 @@ EOF
 # Core Functions
 #-------------------------------------------------------------------------------
 
-# Find all worktrees associated with agent branches, even at unexpected paths
-find_agent_worktrees() {
+# Find all worktrees associated with droid branches, even at unexpected paths
+find_droid_worktrees() {
     cd "$TARGET_REPO_PATH"
-    for i in $(seq 1 "$NUM_AGENTS"); do
-        local branch="feat/agent-${i}-workspace"
+    for i in $(seq 1 "$NUM_DROIDS"); do
+        local branch="feat/droid-${i}-workspace"
         # Search for this branch in the porcelain worktree list
-        git worktree list --porcelain 2>/dev/null | awk -v branch="refs/heads/${branch}" -v agent="$i" '
+        git worktree list --porcelain 2>/dev/null | awk -v branch="refs/heads/${branch}" -v droid_num="$i" '
             /^worktree / { wt = substr($0, 10) }
-            $0 == "branch " branch { print agent "\t" wt }
+            $0 == "branch " branch { print droid_num "\t" wt }
         '
     done
 }
 
-# Check for uncommitted changes across all agent worktrees
+# Check for uncommitted changes across all droid worktrees
 check_uncommitted() {
     local has_changes=false
 
     # Check expected paths
-    for i in $(seq 1 "$NUM_AGENTS"); do
-        local worktree_path="${REPO_PARENT_DIR}/${PROJECT_NAME}-agent-${i}"
+    for i in $(seq 1 "$NUM_DROIDS"); do
+        local worktree_path="${REPO_PARENT_DIR}/${PROJECT_NAME}-${i}"
         if [[ -d "$worktree_path" ]]; then
             local changes
             changes=$(cd "$worktree_path" && git status --porcelain 2>/dev/null | wc -l | tr -d ' ')
             if [[ "$changes" -gt 0 ]]; then
                 has_changes=true
-                log_warning "Agent ${i} (${worktree_path}) has ${changes} uncommitted change(s)"
+                log_warning "Droid ${i} (${worktree_path}) has ${changes} uncommitted change(s)"
             fi
         fi
     done
 
     # Also check worktrees at unexpected paths
-    while IFS=$'\t' read -r agent_num wt_path; do
-        local expected="${REPO_PARENT_DIR}/${PROJECT_NAME}-agent-${agent_num}"
+    while IFS=$'\t' read -r droid_num wt_path; do
+        local expected="${REPO_PARENT_DIR}/${PROJECT_NAME}-${droid_num}"
         if [[ "$wt_path" != "$expected" ]] && [[ -d "$wt_path" ]]; then
             local changes
             changes=$(cd "$wt_path" && git status --porcelain 2>/dev/null | wc -l | tr -d ' ')
             if [[ "$changes" -gt 0 ]]; then
                 has_changes=true
-                log_warning "Agent ${agent_num} at stale path (${wt_path}) has ${changes} uncommitted change(s)"
+                log_warning "Droid ${droid_num} at stale path (${wt_path}) has ${changes} uncommitted change(s)"
             fi
         fi
-    done < <(find_agent_worktrees)
+    done < <(find_droid_worktrees)
 
     if [[ "$has_changes" == "true" ]]; then
         return 1
@@ -113,12 +113,12 @@ check_uncommitted() {
     return 0
 }
 
-remove_all_agent_worktrees() {
+remove_all_droid_worktrees() {
     cd "$TARGET_REPO_PATH"
 
     # 1. Remove worktrees at expected paths
-    for i in $(seq 1 "$NUM_AGENTS"); do
-        local worktree_path="${REPO_PARENT_DIR}/${PROJECT_NAME}-agent-${i}"
+    for i in $(seq 1 "$NUM_DROIDS"); do
+        local worktree_path="${REPO_PARENT_DIR}/${PROJECT_NAME}-${i}"
         if [[ -d "$worktree_path" ]]; then
             log_info "Removing worktree: ${worktree_path}"
             git worktree remove "$worktree_path" --force 2>/dev/null || {
@@ -130,26 +130,26 @@ remove_all_agent_worktrees() {
     done
 
     # 2. Remove worktrees at unexpected/stale paths (e.g. after project rename)
-    while IFS=$'\t' read -r agent_num wt_path; do
+    while IFS=$'\t' read -r droid_num wt_path; do
         if [[ -d "$wt_path" ]]; then
-            log_info "Removing stale worktree for agent ${agent_num}: ${wt_path}"
+            log_info "Removing stale worktree for droid ${droid_num}: ${wt_path}"
             git worktree remove "$wt_path" --force 2>/dev/null || {
                 log_warning "  git worktree remove failed, cleaning manually..."
                 rm -rf "$wt_path"
             }
             log_success "  Removed stale: ${wt_path}"
         fi
-    done < <(find_agent_worktrees)
+    done < <(find_droid_worktrees)
 
     # 3. Prune any remaining stale references
     git worktree prune 2>/dev/null || true
 
     # 4. Clean up any leftover .git/worktrees metadata
-    for i in $(seq 1 "$NUM_AGENTS"); do
-        local meta=".git/worktrees/${PROJECT_NAME}-agent-${i}"
+    for i in $(seq 1 "$NUM_DROIDS"); do
+        local meta=".git/worktrees/${PROJECT_NAME}-${i}"
         if [[ -d "$meta" ]]; then
             rm -rf "$meta"
-            log_info "  Cleaned metadata: ${PROJECT_NAME}-agent-${i}"
+            log_info "  Cleaned metadata: ${PROJECT_NAME}-${i}"
         fi
     done
 
@@ -188,7 +188,7 @@ main() {
 
     print_header "Claude Factory - Reset Worktrees"
     echo "Project: ${PROJECT_NAME}"
-    echo "Agents:  ${NUM_AGENTS}"
+    echo "Droids:  ${NUM_DROIDS}"
     echo ""
 
     if [[ ! -d "$TARGET_REPO_PATH" ]]; then
@@ -197,16 +197,16 @@ main() {
     fi
 
     # Show current state
-    log_info "Current agent branches:"
+    log_info "Current droid branches:"
     cd "$TARGET_REPO_PATH"
-    for i in $(seq 1 "$NUM_AGENTS"); do
-        local branch="feat/agent-${i}-workspace"
+    for i in $(seq 1 "$NUM_DROIDS"); do
+        local branch="feat/droid-${i}-workspace"
         if git show-ref --verify --quiet "refs/heads/${branch}" 2>/dev/null; then
             local commit
             commit=$(git log -1 --format="%h %s" "$branch" 2>/dev/null || echo "unknown")
-            echo "  Agent ${i}: $commit"
+            echo "  Droid ${i}: $commit"
         else
-            echo "  Agent ${i}: (no branch)"
+            echo "  Droid ${i}: (no branch)"
         fi
     done
     echo ""
@@ -227,13 +227,13 @@ main() {
     fi
 
     # Remove worktrees
-    remove_all_agent_worktrees
+    remove_all_droid_worktrees
 
     # Optionally delete branches
     if [[ "$delete_branches" == "true" ]]; then
-        log_info "Deleting agent branches..."
-        for i in $(seq 1 "$NUM_AGENTS"); do
-            local branch="feat/agent-${i}-workspace"
+        log_info "Deleting droid branches..."
+        for i in $(seq 1 "$NUM_DROIDS"); do
+            local branch="feat/droid-${i}-workspace"
             if git show-ref --verify --quiet "refs/heads/${branch}" 2>/dev/null; then
                 git branch -D "$branch" 2>/dev/null || log_warning "Could not delete $branch"
                 log_info "  Deleted: $branch"
@@ -244,7 +244,7 @@ main() {
     # Reset coordination state
     if [[ -f "${SCRIPT_DIR}/factory-state.json" ]]; then
         log_info "Resetting coordination state..."
-        "${SCRIPT_DIR}/init-coordination.sh"
+        "${SCRIPT_DIR}/cf-init-coordination.sh"
     fi
 
     # Final state
@@ -259,7 +259,7 @@ main() {
         log_success "Reset complete! Worktrees removed, branches preserved."
     fi
     echo ""
-    echo "Run ./setup.sh to recreate worktrees."
+    echo "Run ./cf-setup.sh to recreate worktrees."
     echo ""
 }
 

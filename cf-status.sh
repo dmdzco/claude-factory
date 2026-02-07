@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #===============================================================================
 # Claude Factory - Status Script
-# Shows the current status of all agent worktrees
+# Shows the current status of all droid worktrees
 #===============================================================================
 
 set -euo pipefail
@@ -21,7 +21,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ -f "${SCRIPT_DIR}/factory.conf" ]]; then
     source "${SCRIPT_DIR}/factory.conf"
 else
-    echo -e "${RED}[ERROR]${NC} factory.conf not found! Run ./configure.sh first."
+    echo -e "${RED}[ERROR]${NC} factory.conf not found! Run ./cf-configure.sh first."
     exit 1
 fi
 
@@ -57,7 +57,7 @@ status_icon() {
 #-------------------------------------------------------------------------------
 
 check_worktree_status() {
-    print_header "Agent Worktree Status"
+    print_header "Droid Worktree Status"
 
     if [[ ! -d "$TARGET_REPO_PATH" ]]; then
         echo -e "${RED}Target repository not found: ${TARGET_REPO_PATH}${NC}"
@@ -66,12 +66,12 @@ check_worktree_status() {
 
     cd "$TARGET_REPO_PATH"
 
-    printf "%-20s %-10s %-30s %-15s\n" "AGENT" "EXISTS" "BRANCH" "STATUS"
+    printf "%-20s %-10s %-30s %-15s\n" "DROID" "EXISTS" "BRANCH" "STATUS"
     printf "%-20s %-10s %-30s %-15s\n" "─────" "──────" "──────" "──────"
 
-    for i in $(seq 1 $NUM_AGENTS); do
-        local worktree_path="${REPO_PARENT_DIR}/${PROJECT_NAME}-agent-${i}"
-        local name="${PROJECT_NAME}-agent-${i}"
+    for i in $(seq 1 $NUM_DROIDS); do
+        local worktree_path="${REPO_PARENT_DIR}/${PROJECT_NAME}-${i}"
+        local name="${PROJECT_NAME}-${i}"
         local exists="no"
         local branch="-"
         local status="-"
@@ -126,7 +126,7 @@ check_coordination_status() {
 
     local state_file="${SCRIPT_DIR}/factory-state.json"
     if [[ ! -f "$state_file" ]]; then
-        echo -e "${YELLOW}No coordination state found. Run ./init-coordination.sh${NC}"
+        echo -e "${YELLOW}No coordination state found. Run ./cf-init-coordination.sh${NC}"
         return
     fi
 
@@ -135,8 +135,8 @@ check_coordination_status() {
         return
     fi
 
-    echo -e "${BLUE}Agent States:${NC}"
-    jq -r '.agents | to_entries[] | "  Agent \(.key): \(.value.status)\(if .value.task != "" then " - " + .value.task else "" end)"' "$state_file"
+    echo -e "${BLUE}Droid States:${NC}"
+    jq -r '.droids | to_entries[] | "  Droid \(.key): \(.value.status)\(if .value.task != "" then " - " + .value.task else "" end)"' "$state_file"
 
     echo ""
     echo -e "${BLUE}File Claims:${NC}"
@@ -145,7 +145,7 @@ check_coordination_status() {
     if [[ "$claim_count" -eq 0 ]]; then
         echo "  (no files claimed)"
     else
-        jq -r '.claims | to_entries[] | "  \(.key) → Agent \(.value.agent) (since \(.value.claimed_at))"' "$state_file"
+        jq -r '.claims | to_entries[] | "  \(.key) → Droid \(.value.droid) (since \(.value.claimed_at))"' "$state_file"
     fi
     echo ""
 }
@@ -153,15 +153,14 @@ check_coordination_status() {
 show_quick_commands() {
     print_header "Quick Commands"
 
-    echo "Setup agents:         ./setup.sh"
-    echo "Open all agents:      ./dispatch.sh"
-    echo "Open one agent:       ./dispatch.sh --agent 1"
-    echo "Send task to all:     ./dispatch.sh \"Your task here\""
-    echo "Reset worktrees:      ./reset.sh"
+    echo "Setup droids:         ./cf-setup.sh"
+    echo "Open all droids:      ./cf-dispatch.sh"
+    echo "Open one droid:       ./cf-dispatch.sh --droid 1"
+    echo "Reset worktrees:      ./cf-reset.sh"
     echo ""
-    echo "Manual agent start:"
-    for i in $(seq 1 $NUM_AGENTS); do
-        echo "  cd ${REPO_PARENT_DIR}/${PROJECT_NAME}-agent-${i} && claude --dangerously-skip-permissions"
+    echo "Manual droid start:"
+    for i in $(seq 1 $NUM_DROIDS); do
+        echo "  cd ${REPO_PARENT_DIR}/${PROJECT_NAME}-${i} && claude --dangerously-skip-permissions"
     done
     echo ""
 }

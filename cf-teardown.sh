@@ -21,7 +21,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ -f "${SCRIPT_DIR}/factory.conf" ]]; then
     source "${SCRIPT_DIR}/factory.conf"
 else
-    echo -e "${RED}[ERROR]${NC} factory.conf not found! Run ./configure.sh first."
+    echo -e "${RED}[ERROR]${NC} factory.conf not found! Run ./cf-configure.sh first."
     exit 1
 fi
 
@@ -73,14 +73,14 @@ EOF
 check_uncommitted_changes() {
     local has_changes=false
 
-    for i in $(seq 1 $NUM_AGENTS); do
-        local worktree_path="${REPO_PARENT_DIR}/${PROJECT_NAME}-agent-${i}"
+    for i in $(seq 1 $NUM_DROIDS); do
+        local worktree_path="${REPO_PARENT_DIR}/${PROJECT_NAME}-${i}"
 
         if [[ -d "$worktree_path" ]]; then
             local changes=$(cd "$worktree_path" && git status --porcelain 2>/dev/null | wc -l | tr -d ' ')
             if [[ "$changes" -gt 0 ]]; then
                 has_changes=true
-                log_warning "${PROJECT_NAME}-agent-${i} has ${changes} uncommitted change(s)"
+                log_warning "${PROJECT_NAME}-${i} has ${changes} uncommitted change(s)"
             fi
         fi
     done
@@ -105,22 +105,22 @@ remove_worktrees() {
 
     cd "$TARGET_REPO_PATH"
 
-    for i in $(seq 1 $NUM_AGENTS); do
-        local worktree_path="${REPO_PARENT_DIR}/${PROJECT_NAME}-agent-${i}"
+    for i in $(seq 1 $NUM_DROIDS); do
+        local worktree_path="${REPO_PARENT_DIR}/${PROJECT_NAME}-${i}"
 
         if [[ -d "$worktree_path" ]]; then
-            log_info "Removing worktree: ${PROJECT_NAME}-agent-${i}"
+            log_info "Removing worktree: ${PROJECT_NAME}-${i}"
 
             if git worktree remove "$worktree_path" --force 2>/dev/null; then
-                log_success "Removed worktree: ${PROJECT_NAME}-agent-${i}"
+                log_success "Removed worktree: ${PROJECT_NAME}-${i}"
             else
                 log_warning "Git worktree remove failed, cleaning manually..."
                 rm -rf "$worktree_path"
                 git worktree prune 2>/dev/null || true
-                log_success "Manually removed: ${PROJECT_NAME}-agent-${i}"
+                log_success "Manually removed: ${PROJECT_NAME}-${i}"
             fi
         else
-            log_info "Worktree not found: ${PROJECT_NAME}-agent-${i}"
+            log_info "Worktree not found: ${PROJECT_NAME}-${i}"
         fi
     done
 
@@ -136,8 +136,8 @@ remove_branches() {
 
     cd "$TARGET_REPO_PATH"
 
-    for i in $(seq 1 $NUM_AGENTS); do
-        local branch="feat/agent-${i}-workspace"
+    for i in $(seq 1 $NUM_DROIDS); do
+        local branch="feat/droid-${i}-workspace"
 
         if git show-ref --verify --quiet "refs/heads/${branch}"; then
             log_info "Deleting branch: $branch"
@@ -225,7 +225,7 @@ main() {
         remove_coordination_state
 
         print_header "Full Teardown Complete"
-        echo "To start fresh, run: ./setup.sh"
+        echo "To start fresh, run: ./cf-setup.sh"
     else
         log_info "Removing worktrees only (branches preserved)"
         echo "Use --full to also remove branches and coordination state"
@@ -244,7 +244,7 @@ main() {
         remove_worktrees
 
         print_header "Worktrees Removed"
-        echo "Branches preserved. To recreate worktrees, run: ./setup.sh"
+        echo "Branches preserved. To recreate worktrees, run: ./cf-setup.sh"
     fi
 }
 

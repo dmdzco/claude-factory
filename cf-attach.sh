@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #===============================================================================
-# Claude Factory - Attach to Agent
-# Opens a view of an agent's worktree
+# Claude Factory - Attach to Droid
+# Opens a view of a droid's worktree
 #===============================================================================
 
 set -euo pipefail
@@ -20,7 +20,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ -f "${SCRIPT_DIR}/factory.conf" ]]; then
     source "${SCRIPT_DIR}/factory.conf"
 else
-    echo -e "${RED}[ERROR]${NC} factory.conf not found! Run ./configure.sh first."
+    echo -e "${RED}[ERROR]${NC} factory.conf not found! Run ./cf-configure.sh first."
     exit 1
 fi
 
@@ -33,23 +33,23 @@ REPO_PARENT_DIR="$(dirname "$TARGET_REPO_PATH")"
 
 print_usage() {
     cat << EOF
-${CYAN}Claude Factory - Attach to Agent${NC}
+${CYAN}Claude Factory - Attach to Droid${NC}
 
 Usage:
-  $(basename "$0") <agent-id> [mode]
+  $(basename "$0") <droid-id> [mode]
 
 Modes:
-  watch     Watch the agent's log file (default)
+  watch     Watch the droid's log file (default)
   shell     Open a bash shell in the worktree
   claude    Start interactive Claude session
 
 Examples:
-  $(basename "$0") 1           # Watch agent 1's output
-  $(basename "$0") 2 shell     # Shell into agent 2's worktree
-  $(basename "$0") 3 claude    # Interactive Claude with agent 3
+  $(basename "$0") 1           # Watch droid 1's output
+  $(basename "$0") 2 shell     # Shell into droid 2's worktree
+  $(basename "$0") 3 claude    # Interactive Claude with droid 3
 
 Tip: Open multiple terminal tabs and run this in each with different
-     agent IDs to monitor all agents simultaneously.
+     droid IDs to monitor all droids simultaneously.
 
 EOF
 }
@@ -60,35 +60,35 @@ if [[ $# -lt 1 ]]; then
     exit 1
 fi
 
-AGENT_ID="$1"
+DROID_ID="$1"
 MODE="${2:-watch}"
 
-# Validate agent ID
-if [[ ! "$AGENT_ID" =~ ^[0-9]+$ ]] || [[ "$AGENT_ID" -lt 1 ]] || [[ "$AGENT_ID" -gt "$NUM_AGENTS" ]]; then
-    echo -e "${RED}Error: Agent ID must be between 1 and ${NUM_AGENTS}${NC}"
+# Validate droid ID
+if [[ ! "$DROID_ID" =~ ^[0-9]+$ ]] || [[ "$DROID_ID" -lt 1 ]] || [[ "$DROID_ID" -gt "$NUM_DROIDS" ]]; then
+    echo -e "${RED}Error: Droid ID must be between 1 and ${NUM_DROIDS}${NC}"
     exit 1
 fi
 
-WORKTREE_DIR="${REPO_PARENT_DIR}/${PROJECT_NAME}-agent-${AGENT_ID}"
+WORKTREE_DIR="${REPO_PARENT_DIR}/${PROJECT_NAME}-${DROID_ID}"
 
 # Check if worktree exists
 if [[ ! -d "$WORKTREE_DIR" ]]; then
     echo -e "${RED}Error: Worktree not found at ${WORKTREE_DIR}${NC}"
-    echo "Run ./setup.sh first"
+    echo "Run ./cf-setup.sh first"
     exit 1
 fi
 
 echo ""
 echo -e "${CYAN}═══════════════════════════════════════════════════════════════${NC}"
-echo -e "${CYAN}  Agent ${AGENT_ID} - ${MODE} mode${NC}"
+echo -e "${CYAN}  Droid ${DROID_ID} - ${MODE} mode${NC}"
 echo -e "${CYAN}═══════════════════════════════════════════════════════════════${NC}"
 echo ""
 
 case "$MODE" in
     watch)
-        LOG_FILE="${SCRIPT_DIR}/logs/agent-${AGENT_ID}.log"
-        echo -e "${BLUE}Watching agent log... (Ctrl+C to exit)${NC}"
-        echo -e "${YELLOW}Note: Output appears when agent is running a task${NC}"
+        LOG_FILE="${SCRIPT_DIR}/logs/droid-${DROID_ID}.log"
+        echo -e "${BLUE}Watching droid log... (Ctrl+C to exit)${NC}"
+        echo -e "${YELLOW}Note: Output appears when droid is running a task${NC}"
         echo ""
         touch "$LOG_FILE"
         tail -f "$LOG_FILE"

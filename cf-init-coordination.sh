@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #===============================================================================
 # Claude Factory - Initialize Coordination
-# Creates the factory-state.json file for agent coordination
+# Creates the factory-state.json file for droid coordination
 #===============================================================================
 
 set -euo pipefail
@@ -20,7 +20,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ -f "${SCRIPT_DIR}/factory.conf" ]]; then
     source "${SCRIPT_DIR}/factory.conf"
 else
-    echo -e "${RED}[ERROR]${NC} factory.conf not found! Run ./configure.sh first."
+    echo -e "${RED}[ERROR]${NC} factory.conf not found! Run ./cf-configure.sh first."
     exit 1
 fi
 
@@ -42,20 +42,20 @@ fi
 
 STATE_FILE="${SCRIPT_DIR}/factory-state.json"
 
-log_info "Creating coordination state for ${NUM_AGENTS} agents..."
+log_info "Creating coordination state for ${NUM_DROIDS} droids..."
 
-# Build agents JSON dynamically
-AGENTS_JSON="{}"
-for i in $(seq 1 $NUM_AGENTS); do
-    AGENTS_JSON=$(echo "$AGENTS_JSON" | jq \
+# Build droids JSON dynamically
+DROIDS_JSON="{}"
+for i in $(seq 1 $NUM_DROIDS); do
+    DROIDS_JSON=$(echo "$DROIDS_JSON" | jq \
         --arg id "$i" \
-        --arg branch "feat/agent-${i}-workspace" \
+        --arg branch "feat/droid-${i}-workspace" \
         '.[$id] = {"status": "idle", "task": "", "branch": $branch, "last_update": ""}')
 done
 
 # Create the full state file
-jq -n --argjson agents "$AGENTS_JSON" '{
-    "agents": $agents,
+jq -n --argjson droids "$DROIDS_JSON" '{
+    "droids": $droids,
     "claims": {},
     "messages": [],
     "tasks": {"high": [], "normal": [], "low": []}
@@ -65,8 +65,8 @@ log_success "Coordination state initialized!"
 echo ""
 echo "State file: ${STATE_FILE}"
 echo ""
-echo "Agent coordination commands:"
-echo "  ./claim.sh <agent-id> <file>     Claim a file before editing"
-echo "  ./release.sh <agent-id> [file]   Release a claim (or all claims)"
-echo "  ./status.sh                      View current state"
+echo "Droid coordination commands:"
+echo "  ./cf-claim.sh <droid-id> <file>     Claim a file before editing"
+echo "  ./cf-release.sh <droid-id> [file]   Release a claim (or all claims)"
+echo "  ./cf-status.sh                      View current state"
 echo ""

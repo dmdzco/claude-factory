@@ -43,7 +43,7 @@ else
 fi
 
 echo ""
-echo -e "${YELLOW}The agents need a token with WRITE permissions to push code.${NC}"
+echo -e "${YELLOW}The droids need a token with WRITE permissions to push code.${NC}"
 echo ""
 echo "You have two options:"
 echo ""
@@ -92,9 +92,9 @@ echo -e "${GREEN}═════════════════════
 echo ""
 echo "Next steps:"
 echo ""
-echo "  1. Run setup and open agent terminals:"
-echo "     ./setup.sh"
-echo "     ./dispatch.sh"
+echo "  1. Run setup and open droid terminals:"
+echo "     ./cf-setup.sh"
+echo "     ./cf-dispatch.sh"
 echo ""
 echo -e "${YELLOW}Note: The .env file is in .gitignore and won't be committed.${NC}"
 echo ""

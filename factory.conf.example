@@ -7,16 +7,16 @@
 
 # Project name (used for worktree directories and branch names)
 # Example: If PROJECT_NAME=myapp, creates:
-#   - Worktrees: ../myapp-agent-1/, ../myapp-agent-2/, ...
-#   - Branches:  feat/agent-1-workspace, feat/agent-2-workspace, ...
+#   - Worktrees: ../myapp-1/, ../myapp-2/, ...
+#   - Branches:  feat/droid-1-workspace, feat/droid-2-workspace, ...
 PROJECT_NAME="myapp"
 
 # Absolute path to the target git repository
-# This is the repo your agents will work on
+# This is the repo your droids will work on
 TARGET_REPO_PATH="/Users/you/code/myapp"
 
-# Number of parallel agents (1-10)
-NUM_AGENTS=3
+# Number of parallel droids (1-10)
+NUM_DROIDS=3
 
 # Default Claude model (sonnet, opus, haiku)
 DEFAULT_MODEL="sonnet"

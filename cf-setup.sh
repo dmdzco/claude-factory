@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #===============================================================================
 # Claude Factory - Setup Script
-# Creates git worktrees for parallel Claude agents
+# Creates git worktrees for parallel Claude droids
 #===============================================================================
 
 set -euo pipefail
@@ -22,8 +22,8 @@ LOG_DIR="${SCRIPT_DIR}/logs"
 if [[ ! -f "${SCRIPT_DIR}/factory.conf" ]]; then
     echo -e "${YELLOW}[INFO]${NC} No factory.conf found. Running interactive configuration..."
     echo ""
-    "${SCRIPT_DIR}/configure.sh" "$@"
-    # Re-parse args below since configure.sh consumed the path arg
+    "${SCRIPT_DIR}/cf-configure.sh" "$@"
+    # Re-parse args below since cf-configure.sh consumed the path arg
     set --
 fi
 source "${SCRIPT_DIR}/factory.conf"
@@ -62,7 +62,7 @@ preflight_checks() {
     # Check if target repo exists
     if [[ ! -d "$TARGET_REPO_PATH" ]]; then
         log_error "Target repository not found at: $TARGET_REPO_PATH"
-        log_error "Run ./configure.sh to fix your project path."
+        log_error "Run ./cf-configure.sh to fix your project path."
         exit 1
     fi
     log_success "Target repository found: $TARGET_REPO_PATH"
@@ -124,15 +124,15 @@ setup_worktrees() {
     base_branch=$(git branch --show-current)
     log_info "Base branch: $base_branch"
 
-    for i in $(seq 1 $NUM_AGENTS); do
-        local worktree_path="${REPO_PARENT_DIR}/${PROJECT_NAME}-agent-${i}"
-        local branch_name="feat/agent-${i}-workspace"
+    for i in $(seq 1 $NUM_DROIDS); do
+        local worktree_path="${REPO_PARENT_DIR}/${PROJECT_NAME}-${i}"
+        local branch_name="feat/droid-${i}-workspace"
 
         if [[ -d "$worktree_path" ]]; then
-            log_info "Worktree already exists: ${PROJECT_NAME}-agent-${i}"
+            log_info "Worktree already exists: ${PROJECT_NAME}-${i}"
 
             if git worktree list | grep -q "$worktree_path"; then
-                log_success "Verified worktree: ${PROJECT_NAME}-agent-${i}"
+                log_success "Verified worktree: ${PROJECT_NAME}-${i}"
             else
                 log_warning "Directory exists but is not a worktree. Cleaning up..."
                 rm -rf "$worktree_path"
@@ -205,20 +205,19 @@ print_summary() {
     echo -e "${GREEN}Your Claude Factory is ready!${NC}"
     echo ""
     echo "Project: ${PROJECT_NAME}"
-    echo "Agents:  ${NUM_AGENTS}"
+    echo "Droids:  ${NUM_DROIDS}"
     echo ""
     echo "Quick Commands:"
-    echo "  - Open agent terminals:       ./dispatch.sh"
-    echo "  - Send task to all agents:    ./dispatch.sh \"Your task here\""
-    echo "  - Check status:               ./status.sh"
-    echo "  - Reset (keep commits):       ./reset.sh"
+    echo "  - Open droid terminals:       ./cf-dispatch.sh"
+    echo "  - Check status:               ./cf-status.sh"
+    echo "  - Reset (keep commits):       ./cf-reset.sh"
     echo ""
-    echo "Agent Worktrees:"
-    for i in $(seq 1 $NUM_AGENTS); do
-        echo "  - Agent ${i}: ${REPO_PARENT_DIR}/${PROJECT_NAME}-agent-${i}"
+    echo "Droid Worktrees:"
+    for i in $(seq 1 $NUM_DROIDS); do
+        echo "  - Droid ${i}: ${REPO_PARENT_DIR}/${PROJECT_NAME}-${i}"
     done
     echo ""
-    echo -e "${GREEN}Run ./dispatch.sh to open all agent terminals!${NC}"
+    echo -e "${GREEN}Run ./cf-dispatch.sh to open all droid terminals!${NC}"
 }
 
 #-------------------------------------------------------------------------------
@@ -232,24 +231,24 @@ main() {
             -n)
                 local new_count="$2"
                 if [[ ! "$new_count" =~ ^[0-9]+$ ]] || [[ "$new_count" -lt 1 ]] || [[ "$new_count" -gt 10 ]]; then
-                    log_error "Agent count must be between 1 and 10"
+                    log_error "Droid count must be between 1 and 10"
                     exit 1
                 fi
-                NUM_AGENTS="$new_count"
+                NUM_DROIDS="$new_count"
                 # Save back to factory.conf (portable sed)
                 if [[ "$(uname)" == "Darwin" ]]; then
-                    sed -i '' "s/^NUM_AGENTS=.*/NUM_AGENTS=${NUM_AGENTS}/" "${SCRIPT_DIR}/factory.conf"
+                    sed -i '' "s/^NUM_DROIDS=.*/NUM_DROIDS=${NUM_DROIDS}/" "${SCRIPT_DIR}/factory.conf"
                 else
-                    sed -i "s/^NUM_AGENTS=.*/NUM_AGENTS=${NUM_AGENTS}/" "${SCRIPT_DIR}/factory.conf"
+                    sed -i "s/^NUM_DROIDS=.*/NUM_DROIDS=${NUM_DROIDS}/" "${SCRIPT_DIR}/factory.conf"
                 fi
-                log_info "Updated NUM_AGENTS=${NUM_AGENTS} in factory.conf"
+                log_info "Updated NUM_DROIDS=${NUM_DROIDS} in factory.conf"
                 shift 2
                 ;;
             -h|--help)
-                echo "Usage: $(basename "$0") [-n <num_agents>] [-h]"
+                echo "Usage: $(basename "$0") [-n <num_droids>] [-h]"
                 echo ""
                 echo "Options:"
-                echo "  -n <NUM>   Set number of agents (1-10), saves to factory.conf"
+                echo "  -n <NUM>   Set number of droids (1-10), saves to factory.conf"
                 echo "  -h, --help Show this help"
                 exit 0
                 ;;
@@ -262,7 +261,7 @@ main() {
 
     log_header "Claude Factory Setup"
     echo "Project: ${PROJECT_NAME}"
-    echo "Agents:  ${NUM_AGENTS}"
+    echo "Droids:  ${NUM_DROIDS}"
     echo ""
 
     preflight_checks

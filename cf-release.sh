@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #===============================================================================
-# Claude Factory - Release file claim(s) for an agent
-# Usage: ./release.sh <agent-id> [file-path]
-#   If file-path omitted, releases ALL claims for that agent
+# Claude Factory - Release file claim(s) for a droid
+# Usage: ./cf-release.sh <droid-id> [file-path]
+#   If file-path omitted, releases ALL claims for that droid
 #===============================================================================
 
 set -euo pipefail
@@ -20,7 +20,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ -f "${SCRIPT_DIR}/factory.conf" ]]; then
     source "${SCRIPT_DIR}/factory.conf"
 else
-    echo -e "${RED}[ERROR]${NC} factory.conf not found! Run ./configure.sh first."
+    echo -e "${RED}[ERROR]${NC} factory.conf not found! Run ./cf-configure.sh first."
     exit 1
 fi
 
@@ -28,23 +28,23 @@ STATE_FILE="${SCRIPT_DIR}/factory-state.json"
 
 # Check arguments
 if [[ $# -lt 1 ]]; then
-    echo "Usage: $(basename "$0") <agent-id> [file-path]"
+    echo "Usage: $(basename "$0") <droid-id> [file-path]"
     echo ""
-    echo "Releases a file claim. If no file specified, releases ALL claims for the agent."
+    echo "Releases a file claim. If no file specified, releases ALL claims for the droid."
     echo ""
     echo "Examples:"
     echo "  $(basename "$0") 1 src/auth.js    # Release specific file"
-    echo "  $(basename "$0") 1                # Release all files for agent 1"
+    echo "  $(basename "$0") 1                # Release all files for droid 1"
     echo "  $(basename "$0") external src/config.js  # External instance release"
     exit 1
 fi
 
-AGENT_ID="$1"
+DROID_ID="$1"
 FILE_PATH="${2:-}"
 
-# Validate agent ID (numeric factory IDs like 1, 2, 3 or string IDs like "external", "cowork")
-if [[ ! "$AGENT_ID" =~ ^[a-zA-Z0-9_-]+$ ]]; then
-    echo -e "${RED}[ERROR]${NC} Agent ID must be alphanumeric (letters, numbers, hyphens, underscores)"
+# Validate droid ID (numeric factory IDs like 1, 2, 3 or string IDs like "external", "cowork")
+if [[ ! "$DROID_ID" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+    echo -e "${RED}[ERROR]${NC} Droid ID must be alphanumeric (letters, numbers, hyphens, underscores)"
     exit 1
 fi
 
@@ -56,7 +56,7 @@ fi
 
 # Check state file exists
 if [[ ! -f "$STATE_FILE" ]]; then
-    echo -e "${RED}[ERROR]${NC} factory-state.json not found. Run ./init-coordination.sh first."
+    echo -e "${RED}[ERROR]${NC} factory-state.json not found. Run ./cf-init-coordination.sh first."
     exit 1
 fi
 
@@ -72,38 +72,38 @@ TEMP_FILE=$(mktemp)
 
 if [[ -n "$FILE_PATH" ]]; then
     # Release specific file
-    EXISTING_AGENT=$(jq -r --arg fp "$FILE_PATH" '.claims[$fp].agent // empty' "$STATE_FILE")
+    EXISTING_DROID=$(jq -r --arg fp "$FILE_PATH" '.claims[$fp].droid // empty' "$STATE_FILE")
 
-    if [[ -z "$EXISTING_AGENT" ]]; then
+    if [[ -z "$EXISTING_DROID" ]]; then
         echo -e "${YELLOW}[WARNING]${NC} File is not claimed: ${FILE_PATH}"
         flock -u 200
         rm -f "$TEMP_FILE"
         exit 0
     fi
 
-    if [[ "$EXISTING_AGENT" != "$AGENT_ID" ]]; then
-        echo -e "${RED}[ERROR]${NC} File is claimed by Agent ${EXISTING_AGENT}, not Agent ${AGENT_ID}: ${FILE_PATH}"
+    if [[ "$EXISTING_DROID" != "$DROID_ID" ]]; then
+        echo -e "${RED}[ERROR]${NC} File is claimed by Droid ${EXISTING_DROID}, not Droid ${DROID_ID}: ${FILE_PATH}"
         flock -u 200
         rm -f "$TEMP_FILE"
         exit 1
     fi
 
     jq --arg fp "$FILE_PATH" 'del(.claims[$fp])' "$STATE_FILE" > "$TEMP_FILE" && mv "$TEMP_FILE" "$STATE_FILE"
-    echo -e "${GREEN}[RELEASED]${NC} Agent ${AGENT_ID} released: ${FILE_PATH}"
+    echo -e "${GREEN}[RELEASED]${NC} Droid ${DROID_ID} released: ${FILE_PATH}"
 else
-    # Release ALL claims for this agent
-    CLAIMED_FILES=$(jq -r --arg agent "$AGENT_ID" '.claims | to_entries[] | select(.value.agent == $agent) | .key' "$STATE_FILE")
+    # Release ALL claims for this droid
+    CLAIMED_FILES=$(jq -r --arg droid "$DROID_ID" '.claims | to_entries[] | select(.value.droid == $droid) | .key' "$STATE_FILE")
 
     if [[ -z "$CLAIMED_FILES" ]]; then
-        echo -e "${YELLOW}[WARNING]${NC} Agent ${AGENT_ID} has no active claims."
+        echo -e "${YELLOW}[WARNING]${NC} Droid ${DROID_ID} has no active claims."
         flock -u 200
         rm -f "$TEMP_FILE"
         exit 0
     fi
 
-    jq --arg agent "$AGENT_ID" '.claims |= with_entries(select(.value.agent != $agent))' "$STATE_FILE" > "$TEMP_FILE" && mv "$TEMP_FILE" "$STATE_FILE"
+    jq --arg droid "$DROID_ID" '.claims |= with_entries(select(.value.droid != $droid))' "$STATE_FILE" > "$TEMP_FILE" && mv "$TEMP_FILE" "$STATE_FILE"
 
-    echo -e "${GREEN}[RELEASED]${NC} Agent ${AGENT_ID} released all claims:"
+    echo -e "${GREEN}[RELEASED]${NC} Droid ${DROID_ID} released all claims:"
     echo "$CLAIMED_FILES" | while read -r f; do
         echo "  - ${f}"
     done

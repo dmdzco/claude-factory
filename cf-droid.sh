@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #===============================================================================
-# Claude Factory - Agent Session
-# Starts an interactive Claude session for a specific agent
+# Claude Factory - Droid Session
+# Starts an interactive Claude session for a specific droid
 #===============================================================================
 
 set -euo pipefail
@@ -20,7 +20,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ -f "${SCRIPT_DIR}/factory.conf" ]]; then
     source "${SCRIPT_DIR}/factory.conf"
 else
-    echo -e "${RED}[ERROR]${NC} factory.conf not found! Run ./configure.sh first."
+    echo -e "${RED}[ERROR]${NC} factory.conf not found! Run ./cf-configure.sh first."
     exit 1
 fi
 
@@ -33,31 +33,31 @@ REPO_PARENT_DIR="$(dirname "$TARGET_REPO_PATH")"
 
 # Check argument
 if [[ $# -lt 1 ]]; then
-    echo "Usage: $0 <agent-id>"
-    echo "  agent-id: 1-${NUM_AGENTS}"
+    echo "Usage: $0 <droid-id>"
+    echo "  droid-id: 1-${NUM_DROIDS}"
     exit 1
 fi
 
-AGENT_ID="$1"
+DROID_ID="$1"
 
 # Validate
-if [[ ! "$AGENT_ID" =~ ^[0-9]+$ ]] || [[ "$AGENT_ID" -lt 1 ]] || [[ "$AGENT_ID" -gt "$NUM_AGENTS" ]]; then
-    echo -e "${RED}Error: Agent ID must be between 1 and ${NUM_AGENTS}${NC}"
+if [[ ! "$DROID_ID" =~ ^[0-9]+$ ]] || [[ "$DROID_ID" -lt 1 ]] || [[ "$DROID_ID" -gt "$NUM_DROIDS" ]]; then
+    echo -e "${RED}Error: Droid ID must be between 1 and ${NUM_DROIDS}${NC}"
     exit 1
 fi
 
-WORKTREE_DIR="${REPO_PARENT_DIR}/${PROJECT_NAME}-agent-${AGENT_ID}"
-BRANCH="feat/agent-${AGENT_ID}-workspace"
+WORKTREE_DIR="${REPO_PARENT_DIR}/${PROJECT_NAME}-${DROID_ID}"
+BRANCH="feat/droid-${DROID_ID}-workspace"
 
 echo -e "${CYAN}═══════════════════════════════════════════════════════════════${NC}"
-echo -e "${CYAN}           CLAUDE FACTORY - AGENT ${AGENT_ID}${NC}"
+echo -e "${CYAN}           CLAUDE FACTORY - DROID ${DROID_ID}${NC}"
 echo -e "${CYAN}═══════════════════════════════════════════════════════════════${NC}"
 echo ""
 
 # Check if worktree exists
 if [[ ! -d "$WORKTREE_DIR" ]]; then
     echo -e "${RED}Error: Worktree not found at ${WORKTREE_DIR}${NC}"
-    echo "Run ./setup.sh first"
+    echo "Run ./cf-setup.sh first"
     exit 1
 fi
 
@@ -66,13 +66,13 @@ echo -e "${GREEN}Branch:${NC}    ${BRANCH}"
 echo -e "${GREEN}Model:${NC}     ${DEFAULT_MODEL}"
 echo ""
 echo -e "${YELLOW}─────────────────────────────────────────────────────────────────${NC}"
-echo -e "${YELLOW}  AGENT PROTOCOL REMINDER${NC}"
+echo -e "${YELLOW}  DROID PROTOCOL REMINDER${NC}"
 echo -e "${YELLOW}─────────────────────────────────────────────────────────────────${NC}"
 echo ""
-echo "  1. Claim files before editing: ../$(basename "$SCRIPT_DIR")/claim.sh ${AGENT_ID} <file>"
-echo "  2. Don't touch files claimed by other agents"
-echo "  3. Release claims when done: ../$(basename "$SCRIPT_DIR")/release.sh ${AGENT_ID}"
-echo "  4. Check status: ../$(basename "$SCRIPT_DIR")/status.sh"
+echo "  1. Claim files before editing: ../$(basename "$SCRIPT_DIR")/cf-claim.sh ${DROID_ID} <file>"
+echo "  2. Don't touch files claimed by other droids"
+echo "  3. Release claims when done: ../$(basename "$SCRIPT_DIR")/cf-release.sh ${DROID_ID}"
+echo "  4. Check status: ../$(basename "$SCRIPT_DIR")/cf-status.sh"
 echo ""
 echo -e "${YELLOW}─────────────────────────────────────────────────────────────────${NC}"
 echo ""
@@ -87,5 +87,5 @@ claude --dangerously-skip-permissions --model "$DEFAULT_MODEL"
 echo ""
 echo -e "${YELLOW}Claude session ended.${NC}"
 echo ""
-echo "To restart: $(dirname "$0")/agent.sh ${AGENT_ID}"
-echo "To stop all: $(dirname "$0")/teardown.sh"
+echo "To restart: $(dirname "$0")/cf-droid.sh ${DROID_ID}"
+echo "To stop all: $(dirname "$0")/cf-teardown.sh"

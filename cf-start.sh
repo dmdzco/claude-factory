@@ -20,7 +20,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ ! -f "${SCRIPT_DIR}/factory.conf" ]]; then
     echo -e "${YELLOW}[INFO]${NC} No factory.conf found. Running interactive configuration..."
     echo ""
-    "${SCRIPT_DIR}/configure.sh" "$@"
+    "${SCRIPT_DIR}/cf-configure.sh" "$@"
 fi
 source "${SCRIPT_DIR}/factory.conf"
 
@@ -52,40 +52,40 @@ print_header "Claude Factory - Full Start"
 echo "This will:"
 echo "  1. Create Git worktrees (if needed)"
 echo "  2. Initialize coordination state"
-echo "  3. Open ${NUM_AGENTS} terminal tabs with Claude sessions"
+echo "  3. Open ${NUM_DROIDS} terminal tabs with Claude sessions"
 echo ""
 
 # Step 1: Run setup
 log_info "Running setup..."
-"${SCRIPT_DIR}/setup.sh"
+"${SCRIPT_DIR}/cf-setup.sh"
 
 # Step 2: Initialize coordination if not present
 if [[ ! -f "${SCRIPT_DIR}/factory-state.json" ]]; then
     log_info "Initializing coordination state..."
-    "${SCRIPT_DIR}/init-coordination.sh"
+    "${SCRIPT_DIR}/cf-init-coordination.sh"
 fi
 
 # Step 3: Open terminal tabs with Claude sessions
-print_header "Opening Agent Terminals"
+print_header "Opening Droid Terminals"
 
-# Use dispatch.sh to handle terminal tab opening
-"${SCRIPT_DIR}/dispatch.sh"
+# Use cf-dispatch.sh to handle terminal tab opening
+"${SCRIPT_DIR}/cf-dispatch.sh"
 
 print_header "Factory Started!"
 
-echo -e "${GREEN}${NUM_AGENTS} Claude agents are now running in separate tabs.${NC}"
+echo -e "${GREEN}${NUM_DROIDS} Claude droids are now running in separate tabs.${NC}"
 echo ""
-echo "Each agent:"
-echo "  - Has its own Git branch (feat/agent-X-workspace)"
-echo "  - Coordinates via factory-state.json (claim.sh/release.sh)"
+echo "Each droid:"
+echo "  - Has its own Git branch (feat/droid-X-workspace)"
+echo "  - Coordinates via factory-state.json (cf-claim.sh/cf-release.sh)"
 echo "  - Runs with --dangerously-skip-permissions"
 echo ""
 echo "Tips:"
-echo "  - Give each agent a different task/area to work on"
-echo "  - They'll claim files via claim.sh to avoid conflicts"
-echo "  - Type directly in each tab to interact with that agent"
+echo "  - Give each droid a different task/area to work on"
+echo "  - They'll claim files via cf-claim.sh to avoid conflicts"
+echo "  - Type directly in each tab to interact with that droid"
 echo ""
 echo "Commands:"
-echo "  ./status.sh      - Check all agents"
-echo "  ./teardown.sh    - Stop everything"
+echo "  ./cf-status.sh      - Check all droids"
+echo "  ./cf-teardown.sh    - Stop everything"
 echo ""
