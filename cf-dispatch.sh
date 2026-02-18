@@ -150,7 +150,7 @@ dispatch_droids_tmux() {
 
         # Create a detached tmux session for this droid
         tmux new-session -d -s "$session_name" -c "$worktree"
-        tmux send-keys -t "$session_name" "$claude_cmd" C-m
+        tmux send-keys -t "$session_name" "unset GH_TOKEN && $claude_cmd" C-m
 
         # Open a new terminal tab and attach to this droid's tmux session
         if [[ "$TERM_PROGRAM" == "iTerm.app" ]]; then
