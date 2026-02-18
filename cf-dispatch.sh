@@ -82,6 +82,30 @@ EOF
 }
 
 #-------------------------------------------------------------------------------
+# Auth Check
+#-------------------------------------------------------------------------------
+
+check_claude_auth() {
+    log_info "Checking Claude authentication..."
+
+    # Quick auth check: run a minimal prompt and see if it succeeds
+    if claude -p "ok" --max-turns 1 &>/dev/null; then
+        log_success "Claude authentication verified"
+        return 0
+    fi
+
+    echo ""
+    log_error "Claude authentication failed!"
+    log_error "Droids will not be able to start without valid credentials."
+    echo ""
+    echo -e "  Fix with one of:"
+    echo -e "    1. Run ${CYAN}claude /login${NC} to authenticate via browser"
+    echo -e "    2. Set ${CYAN}export ANTHROPIC_API_KEY=\"sk-ant-...\"${NC} in your shell"
+    echo ""
+    exit 1
+}
+
+#-------------------------------------------------------------------------------
 # tmux Dispatch
 #-------------------------------------------------------------------------------
 
@@ -248,6 +272,9 @@ main() {
     else
         log_info "Droids: 1-${NUM_DROIDS} (2 per window)"
     fi
+    echo ""
+
+    check_claude_auth
     echo ""
 
     dispatch_droids_tmux "$droid_id"
