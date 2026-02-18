@@ -10,33 +10,37 @@ cd claude-factory
 This will:
 1. Create Git worktrees for each droid (if needed)
 2. Initialize coordination state
-3. Open terminal tabs, each with an interactive Claude session
+3. Launch all droids in a tmux session (2 per window, side-by-side)
 
 ## What You'll See
 
-After running `./cf-start.sh`, you'll have terminal tabs, one per droid:
+After running `./cf-start.sh`, you'll be attached to a tmux session with droids paired in windows:
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│  Tab 1: Droid 1        │  Tab 2: Droid 2        │  Tab 3: ...  │
-│  Branch: feat/droid-1  │  Branch: feat/droid-2  │              │
-│  ─────────────────     │  ─────────────────     │              │
-│  > claude session      │  > claude session      │              │
-│  ready for input...    │  ready for input...    │              │
-└─────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│  Window: droids-1-2                                              │
+│  ┌──────────────────────────┬───────────────────────────────┐    │
+│  │  Droid 1                 │  Droid 2                      │    │
+│  │  Branch: feat/droid-1    │  Branch: feat/droid-2         │    │
+│  │  > claude session        │  > claude session             │    │
+│  │  ready for input...      │  ready for input...           │    │
+│  └──────────────────────────┴───────────────────────────────┘    │
+│                                                                  │
+│  Window: droids-3-4    Window: droids-5-6    ...                 │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
-Each tab is a live Claude session. Type directly to give that droid tasks.
+Each pane is a live Claude session. Switch panes with `Ctrl-b <arrow>` and windows with `Ctrl-b n`/`p`.
 
 ## Giving Droids Tasks
 
-Just type in each tab:
+Switch to a pane and type directly:
 
-**Tab 1 (Droid 1):** "Work on the authentication module in src/auth/. Implement OAuth2 login flow."
+**Droid 1 (left pane):** "Work on the authentication module in src/auth/. Implement OAuth2 login flow."
 
-**Tab 2 (Droid 2):** "Write unit tests for all functions in src/utils/. Aim for 90% coverage."
+**Droid 2 (right pane):** "Write unit tests for all functions in src/utils/. Aim for 90% coverage."
 
-**Tab 3 (Droid 3):** "Review src/api/ for security vulnerabilities. Fix any issues you find."
+**Droid 3 (next window):** "Review src/api/ for security vulnerabilities. Fix any issues you find."
 
 ## How Droids Avoid Conflicts
 
@@ -50,15 +54,15 @@ Droids coordinate through `factory-state.json` using helper scripts:
 
 | Command | What it does |
 |---------|--------------|
-| `./cf-start.sh` | Full startup — setup + open Claude tabs |
-| `./cf-setup.sh` | Just setup (no tabs) |
+| `./cf-start.sh` | Full startup — setup + launch tmux session |
+| `./cf-setup.sh` | Just setup (no tmux) |
 | `./cf-setup.sh -n 5` | Setup with 5 droids |
-| `./cf-dispatch.sh` | Open droid terminal tabs |
+| `./cf-dispatch.sh` | Launch droids in tmux (2 per window) |
 | `./cf-status.sh` | Check all droids and claims |
 | `./cf-claim.sh 1 src/file.js` | Claim a file for droid 1 |
 | `./cf-release.sh 1` | Release all claims for droid 1 |
-| `./cf-teardown.sh` | Remove worktrees (keep branches) |
-| `./cf-teardown.sh --full` | Remove everything |
+| `./cf-teardown.sh` | Kill tmux + remove worktrees (keep branches) |
+| `./cf-teardown.sh --full` | Kill tmux + remove everything |
 
 ## Tips
 
@@ -69,10 +73,16 @@ Droids coordinate through `factory-state.json` using helper scripts:
 
 ## Stopping
 
-Close the terminal tabs, then:
+Detach from tmux with `Ctrl-b d`, then:
 
 ```bash
-./cf-teardown.sh           # Remove worktrees, keep branches
+./cf-teardown.sh           # Kill tmux session + remove worktrees (keep branches)
 # or
-./cf-teardown.sh --full    # Remove everything
+./cf-teardown.sh --full    # Kill tmux + remove everything
+```
+
+To reattach without tearing down:
+
+```bash
+tmux attach -t myapp-factory   # replace myapp with your PROJECT_NAME
 ```
