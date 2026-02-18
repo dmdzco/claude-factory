@@ -23,6 +23,20 @@ The `factory-state.json` file tracks:
 
 Factory droids use numeric IDs (1, 2, 3...) matching their worktree number. External Claude instances — those running outside the factory — can use any alphanumeric string as their droid ID (e.g. `external`, `cowork`, `main-repo`). Both types share the same `factory-state.json` lockfile and coordinate through the same `cf-claim.sh`/`cf-release.sh` scripts.
 
+## tmux Session Layout
+
+Droids are launched in a single tmux session (`{PROJECT_NAME}-factory`), paired 2 per window in side-by-side panes:
+
+```
+Window: droids-1-2          Window: droids-3-4          Window: droids-5
+┌────────────┬────────────┐ ┌────────────┬────────────┐ ┌────────────┐
+│  Droid 1   │  Droid 2   │ │  Droid 3   │  Droid 4   │ │  Droid 5   │
+│  (left)    │  (right)   │ │  (left)    │  (right)   │ │  (solo)    │
+└────────────┴────────────┘ └────────────┴────────────┘ └────────────┘
+```
+
+Navigate with `Ctrl-b n`/`p` (windows) and `Ctrl-b <arrow>` (panes). Detach with `Ctrl-b d`, reattach with `tmux attach -t {PROJECT_NAME}-factory`.
+
 ## Sync Protocol
 
 1. **Before starting work:** `git fetch origin && git rebase origin/main`
