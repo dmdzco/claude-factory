@@ -17,13 +17,14 @@ nano factory.conf  # Set PROJECT_NAME and TARGET_REPO
 # 3. Run setup
 ./cf-setup.sh
 
-# 4. Open droid terminals
+# 4. Launch droids in tmux (2 per window)
 ./cf-dispatch.sh
 ```
 
 ## Requirements
 
 - **Git** - For worktree management
+- **tmux** - For droid terminal management (`brew install tmux` or `apt-get install tmux`)
 - **jq** - For coordination state (`brew install jq` or `apt-get install jq`)
 - **Claude Code CLI** - `npm install -g @anthropic-ai/claude-code`
 - **Claude Authentication** - Run `claude` once and log in
@@ -75,6 +76,8 @@ You can also set droid count via CLI: `./cf-setup.sh -n 5`
 
 Each droid gets its own Git worktree (a separate working directory on its own branch, sharing the same `.git` history). Claude CLI runs directly in each worktree with `--dangerously-skip-permissions` for full autonomy.
 
+Droids are launched in a single **tmux session**, paired 2 per window in side-by-side panes. For example, 6 droids produce 3 tmux windows: `droids-1-2`, `droids-3-4`, `droids-5-6`. An odd number of droids leaves the last window with a single pane.
+
 Droids coordinate through `factory-state.json` — a lockfile that tracks file claims, droid status, and messages. Helper scripts (`cf-claim.sh`, `cf-release.sh`) provide atomic, conflict-free coordination.
 
 ## Commands
@@ -83,15 +86,32 @@ Droids coordinate through `factory-state.json` — a lockfile that tracks file c
 |---------|-------------|
 | `./cf-setup.sh` | Create worktrees for all droids |
 | `./cf-setup.sh -n 5` | Set droid count to 5 and create worktrees |
-| `./cf-dispatch.sh` | Open terminal tab for each droid |
-| `./cf-dispatch.sh --droid 1` | Open terminal for specific droid |
+| `./cf-dispatch.sh` | Launch all droids in tmux (2 per window) |
+| `./cf-dispatch.sh --droid 1` | Launch specific droid in tmux |
 | `./cf-dispatch.sh --model opus` | Use a specific model |
 | `./cf-status.sh` | Show status of all droids and claims |
 | `./cf-claim.sh <id> <file>` | Claim a file for a droid |
 | `./cf-release.sh <id> [file]` | Release a file claim (or all claims) |
 | `./cf-reset.sh` | Clean up worktrees (preserves commits) |
-| `./cf-teardown.sh` | Remove worktrees (preserves branches) |
-| `./cf-teardown.sh --full` | Remove worktrees, branches, and state |
+| `./cf-teardown.sh` | Kill tmux session + remove worktrees |
+| `./cf-teardown.sh --full` | Kill tmux + remove worktrees, branches, and state |
+
+## tmux Navigation
+
+After `./cf-dispatch.sh`, you're attached to the tmux session. Key bindings:
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl-b w` | List all windows |
+| `Ctrl-b n` / `Ctrl-b p` | Next / previous window |
+| `Ctrl-b <arrow>` | Switch pane within a window |
+| `Ctrl-b d` | Detach from session |
+
+To reattach after detaching:
+
+```bash
+tmux attach -t myapp-factory   # replace myapp with your PROJECT_NAME
+```
 
 ## Droid Coordination
 
@@ -141,6 +161,8 @@ If droids need to push code, they need a Personal Access Token:
 **"Target repository not found"** — Your repo must exist parallel to claude-factory: `ls ../myapp`
 
 **"jq not found"** — Install with `brew install jq` (macOS) or `apt-get install jq` (Linux).
+
+**"tmux not found"** — Install with `brew install tmux` (macOS) or `apt-get install tmux` (Linux).
 
 **Worktree issues / detached HEAD** — Run `./cf-reset.sh` then `./cf-setup.sh`.
 
