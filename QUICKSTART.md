@@ -10,37 +10,36 @@ cd claude-factory
 This will:
 1. Create Git worktrees for each droid (if needed)
 2. Initialize coordination state
-3. Launch all droids in a tmux session (2 per window, side-by-side)
+3. Launch all droids in a tmux session (1 per tab)
 
 ## What You'll See
 
-After running `./cf-start.sh`, you'll be attached to a tmux session with droids paired in windows:
+After running `./cf-start.sh`, you'll be attached to a tmux session with each droid in its own tab:
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│  Window: droids-1-2                                              │
-│  ┌──────────────────────────┬───────────────────────────────┐    │
-│  │  Droid 1                 │  Droid 2                      │    │
-│  │  Branch: feat/droid-1    │  Branch: feat/droid-2         │    │
-│  │  > claude session        │  > claude session             │    │
-│  │  ready for input...      │  ready for input...           │    │
-│  └──────────────────────────┴───────────────────────────────┘    │
+│  Tab: droid-1                                                    │
+│  ┌──────────────────────────────────────────────────────────┐    │
+│  │  Droid 1                                                  │    │
+│  │  Branch: feat/droid-1-workspace                           │    │
+│  │  > claude session ready for input...                      │    │
+│  └──────────────────────────────────────────────────────────┘    │
 │                                                                  │
-│  Window: droids-3-4    Window: droids-5-6    ...                 │
+│  Tab: droid-2    Tab: droid-3    Tab: droid-4    ...              │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-Each pane is a live Claude session. Switch panes with `Ctrl-b <arrow>` and windows with `Ctrl-b n`/`p`.
+Each tab is a live Claude session. Switch tabs with `Ctrl-b n`/`p` or list all with `Ctrl-b w`.
 
 ## Giving Droids Tasks
 
-Switch to a pane and type directly:
+Switch to a tab and type directly:
 
-**Droid 1 (left pane):** "Work on the authentication module in src/auth/. Implement OAuth2 login flow."
+**Droid 1 (tab 1):** "Work on the authentication module in src/auth/. Implement OAuth2 login flow."
 
-**Droid 2 (right pane):** "Write unit tests for all functions in src/utils/. Aim for 90% coverage."
+**Droid 2 (tab 2):** "Write unit tests for all functions in src/utils/. Aim for 90% coverage."
 
-**Droid 3 (next window):** "Review src/api/ for security vulnerabilities. Fix any issues you find."
+**Droid 3 (tab 3):** "Review src/api/ for security vulnerabilities. Fix any issues you find."
 
 ## How Droids Avoid Conflicts
 
@@ -57,7 +56,7 @@ Droids coordinate through `factory-state.json` using helper scripts:
 | `./cf-start.sh` | Full startup — setup + launch tmux session |
 | `./cf-setup.sh` | Just setup (no tmux) |
 | `./cf-setup.sh -n 5` | Setup with 5 droids |
-| `./cf-dispatch.sh` | Launch droids in tmux (2 per window) |
+| `./cf-dispatch.sh` | Launch droids in tmux (1 per tab) |
 | `./cf-status.sh` | Check all droids and claims |
 | `./cf-claim.sh 1 src/file.js` | Claim a file for droid 1 |
 | `./cf-release.sh 1` | Release all claims for droid 1 |

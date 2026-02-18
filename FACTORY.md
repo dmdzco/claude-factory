@@ -25,17 +25,16 @@ Factory droids use numeric IDs (1, 2, 3...) matching their worktree number. Exte
 
 ## tmux Session Layout
 
-Droids are launched in a single tmux session (`{PROJECT_NAME}-factory`), paired 2 per window in side-by-side panes:
+Each droid gets its own tmux window (tab) in a single session (`{PROJECT_NAME}-factory`):
 
 ```
-Window: droids-1-2          Window: droids-3-4          Window: droids-5
-┌────────────┬────────────┐ ┌────────────┬────────────┐ ┌────────────┐
-│  Droid 1   │  Droid 2   │ │  Droid 3   │  Droid 4   │ │  Droid 5   │
-│  (left)    │  (right)   │ │  (left)    │  (right)   │ │  (solo)    │
-└────────────┴────────────┘ └────────────┴────────────┘ └────────────┘
+Tab: droid-1       Tab: droid-2       Tab: droid-3       Tab: droid-4
+┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+│   Droid 1    │  │   Droid 2    │  │   Droid 3    │  │   Droid 4    │
+└──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘
 ```
 
-Navigate with `Ctrl-b n`/`p` (windows) and `Ctrl-b <arrow>` (panes). Detach with `Ctrl-b d`, reattach with `tmux attach -t {PROJECT_NAME}-factory`.
+Navigate with `Ctrl-b n`/`p` (next/previous tab) or `Ctrl-b w` (list all tabs). Detach with `Ctrl-b d`, reattach with `tmux attach -t {PROJECT_NAME}-factory`.
 
 ## Sync Protocol
 

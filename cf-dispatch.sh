@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #===============================================================================
 # Claude Factory - Task Dispatch Script
-# Opens droids in tmux, pairing every 2 agents in a single window
+# Opens each droid in its own tmux window (tab)
 #===============================================================================
 
 set -euo pipefail
@@ -60,7 +60,7 @@ Options:
   -h, --help           Show this help
 
 Examples:
-  # Open all droids in tmux (paired 2 per window)
+  # Open all droids in tmux (1 per tab/window)
   $(basename "$0")
 
   # Open specific droid in its own tmux window
@@ -70,9 +70,8 @@ Examples:
   $(basename "$0") --model opus
 
 tmux Controls:
-  Ctrl-b w          List all windows
-  Ctrl-b n / p      Next / previous window
-  Ctrl-b <arrow>    Switch pane within a window
+  Ctrl-b w          List all windows (tabs)
+  Ctrl-b n / p      Next / previous window (tab)
   Ctrl-b d          Detach from session
 
 Reattach:
@@ -142,63 +141,36 @@ dispatch_droids_tmux() {
         return
     fi
 
-    # Multi-droid dispatch: pair every 2 droids in a window
-    log_info "Launching ${NUM_DROIDS} droids in tmux (2 per window)..."
+    # Multi-droid dispatch: 1 droid per window (tab)
+    log_info "Launching ${NUM_DROIDS} droids in tmux (1 per tab)..."
     echo ""
 
-    local window_num=0
     local i=1
 
     while [[ $i -le $NUM_DROIDS ]]; do
-        local droid_a=$i
-        local droid_b=$((i + 1))
-        local worktree_a="${REPO_PARENT_DIR}/${PROJECT_NAME}-${droid_a}"
+        local worktree="${REPO_PARENT_DIR}/${PROJECT_NAME}-${i}"
+        local window_name="droid-${i}"
 
-        # Validate worktree for droid A
-        if [[ ! -d "$worktree_a" ]]; then
-            log_warning "Worktree not found: $worktree_a - skipping droid ${droid_a}"
-            i=$((i + 2))
+        # Validate worktree
+        if [[ ! -d "$worktree" ]]; then
+            log_warning "Worktree not found: $worktree - skipping droid ${i}"
+            i=$((i + 1))
             continue
         fi
 
-        if [[ $window_num -eq 0 ]]; then
+        if [[ $i -eq 1 ]]; then
             # First window: create the session
-            tmux new-session -d -s "$TMUX_SESSION" -n "droids-${droid_a}" -c "$worktree_a"
+            tmux new-session -d -s "$TMUX_SESSION" -n "$window_name" -c "$worktree"
         else
-            # Subsequent windows
-            tmux new-window -t "$TMUX_SESSION" -n "droids-${droid_a}" -c "$worktree_a"
+            # Subsequent windows (tabs)
+            tmux new-window -t "$TMUX_SESSION" -n "$window_name" -c "$worktree"
         fi
 
-        local window_name="droids-${droid_a}"
-
-        # Start droid A in the first pane
+        # Start claude in this window
         tmux send-keys -t "$TMUX_SESSION:${window_name}" "$claude_cmd" C-m
-        log_success "Droid ${droid_a} → window '${window_name}' (left pane)"
+        log_success "Droid ${i} → tab '${window_name}'"
 
-        # If there's a droid B, split and start it
-        if [[ $droid_b -le $NUM_DROIDS ]]; then
-            local worktree_b="${REPO_PARENT_DIR}/${PROJECT_NAME}-${droid_b}"
-
-            if [[ -d "$worktree_b" ]]; then
-                # Rename window to reflect both droids
-                tmux rename-window -t "$TMUX_SESSION:${window_name}" "droids-${droid_a}-${droid_b}"
-                window_name="droids-${droid_a}-${droid_b}"
-
-                # Split horizontally (side by side)
-                tmux split-window -h -t "$TMUX_SESSION:${window_name}" -c "$worktree_b"
-                tmux send-keys -t "$TMUX_SESSION:${window_name}.1" "$claude_cmd" C-m
-
-                # Even out the panes
-                tmux select-layout -t "$TMUX_SESSION:${window_name}" even-horizontal
-
-                log_success "Droid ${droid_b} → window '${window_name}' (right pane)"
-            else
-                log_warning "Worktree not found: $worktree_b - skipping droid ${droid_b}"
-            fi
-        fi
-
-        window_num=$((window_num + 1))
-        i=$((i + 2))
+        i=$((i + 1))
     done
 
     # Select the first window
@@ -208,7 +180,7 @@ dispatch_droids_tmux() {
     log_success "All droids launched in tmux session '${TMUX_SESSION}'"
     echo ""
     log_info "Attaching to tmux session..."
-    log_info "Detach with: Ctrl-b d | Reattach with: tmux attach -t ${TMUX_SESSION}"
+    log_info "Switch tabs: Ctrl-b n/p | Detach: Ctrl-b d | Reattach: tmux attach -t ${TMUX_SESSION}"
     echo ""
 
     # Attach to the session
@@ -270,7 +242,7 @@ main() {
     if [[ -n "$droid_id" ]]; then
         log_info "Droid: ${droid_id}"
     else
-        log_info "Droids: 1-${NUM_DROIDS} (2 per window)"
+        log_info "Droids: 1-${NUM_DROIDS} (1 per tab)"
     fi
     echo ""
 

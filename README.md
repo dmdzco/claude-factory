@@ -17,7 +17,7 @@ nano factory.conf  # Set PROJECT_NAME and TARGET_REPO
 # 3. Run setup
 ./cf-setup.sh
 
-# 4. Launch droids in tmux (2 per window)
+# 4. Launch droids in tmux (1 per tab)
 ./cf-dispatch.sh
 ```
 
@@ -76,7 +76,7 @@ You can also set droid count via CLI: `./cf-setup.sh -n 5`
 
 Each droid gets its own Git worktree (a separate working directory on its own branch, sharing the same `.git` history). Claude CLI runs directly in each worktree with `--dangerously-skip-permissions` for full autonomy.
 
-Droids are launched in a single **tmux session**, paired 2 per window in side-by-side panes. For example, 6 droids produce 3 tmux windows: `droids-1-2`, `droids-3-4`, `droids-5-6`. An odd number of droids leaves the last window with a single pane.
+Droids are launched in a single **tmux session**, each in its own window (tab). For example, 6 droids produce 6 tmux tabs: `droid-1` through `droid-6`.
 
 Droids coordinate through `factory-state.json` — a lockfile that tracks file claims, droid status, and messages. Helper scripts (`cf-claim.sh`, `cf-release.sh`) provide atomic, conflict-free coordination.
 
@@ -86,7 +86,7 @@ Droids coordinate through `factory-state.json` — a lockfile that tracks file c
 |---------|-------------|
 | `./cf-setup.sh` | Create worktrees for all droids |
 | `./cf-setup.sh -n 5` | Set droid count to 5 and create worktrees |
-| `./cf-dispatch.sh` | Launch all droids in tmux (2 per window) |
+| `./cf-dispatch.sh` | Launch all droids in tmux (1 per tab) |
 | `./cf-dispatch.sh --droid 1` | Launch specific droid in tmux |
 | `./cf-dispatch.sh --model opus` | Use a specific model |
 | `./cf-status.sh` | Show status of all droids and claims |
@@ -102,9 +102,8 @@ After `./cf-dispatch.sh`, you're attached to the tmux session. Key bindings:
 
 | Shortcut | Action |
 |----------|--------|
-| `Ctrl-b w` | List all windows |
-| `Ctrl-b n` / `Ctrl-b p` | Next / previous window |
-| `Ctrl-b <arrow>` | Switch pane within a window |
+| `Ctrl-b w` | List all tabs |
+| `Ctrl-b n` / `Ctrl-b p` | Next / previous tab |
 | `Ctrl-b d` | Detach from session |
 
 To reattach after detaching:
