@@ -74,13 +74,13 @@ check_uncommitted_changes() {
     local has_changes=false
 
     for i in $(seq 1 $NUM_DROIDS); do
-        local worktree_path="${REPO_PARENT_DIR}/${PROJECT_NAME}-${i}"
+        local worktree_path="${REPO_PARENT_DIR}/${PROJECT_NAME}-droid-${i}"
 
         if [[ -d "$worktree_path" ]]; then
             local changes=$(cd "$worktree_path" && git status --porcelain 2>/dev/null | wc -l | tr -d ' ')
             if [[ "$changes" -gt 0 ]]; then
                 has_changes=true
-                log_warning "${PROJECT_NAME}-${i} has ${changes} uncommitted change(s)"
+                log_warning "${PROJECT_NAME}-droid-${i} has ${changes} uncommitted change(s)"
             fi
         fi
     done
@@ -106,21 +106,21 @@ remove_worktrees() {
     cd "$TARGET_REPO_PATH"
 
     for i in $(seq 1 $NUM_DROIDS); do
-        local worktree_path="${REPO_PARENT_DIR}/${PROJECT_NAME}-${i}"
+        local worktree_path="${REPO_PARENT_DIR}/${PROJECT_NAME}-droid-${i}"
 
         if [[ -d "$worktree_path" ]]; then
-            log_info "Removing worktree: ${PROJECT_NAME}-${i}"
+            log_info "Removing worktree: ${PROJECT_NAME}-droid-${i}"
 
             if git worktree remove "$worktree_path" --force 2>/dev/null; then
-                log_success "Removed worktree: ${PROJECT_NAME}-${i}"
+                log_success "Removed worktree: ${PROJECT_NAME}-droid-${i}"
             else
                 log_warning "Git worktree remove failed, cleaning manually..."
                 rm -rf "$worktree_path"
                 git worktree prune 2>/dev/null || true
-                log_success "Manually removed: ${PROJECT_NAME}-${i}"
+                log_success "Manually removed: ${PROJECT_NAME}-droid-${i}"
             fi
         else
-            log_info "Worktree not found: ${PROJECT_NAME}-${i}"
+            log_info "Worktree not found: ${PROJECT_NAME}-droid-${i}"
         fi
     done
 
@@ -146,16 +146,23 @@ remove_branches() {
     done
 }
 
-kill_tmux_session() {
-    # Load project name for session naming
-    local tmux_session="${PROJECT_NAME}-factory"
+kill_tmux_sessions() {
+    # Kill per-droid tmux sessions
+    for i in $(seq 1 $NUM_DROIDS); do
+        local session_name="${PROJECT_NAME}-droid-${i}"
+        if tmux has-session -t "$session_name" 2>/dev/null; then
+            log_info "Killing tmux session '${session_name}'..."
+            tmux kill-session -t "$session_name" 2>/dev/null || true
+            log_success "Killed tmux session '${session_name}'"
+        fi
+    done
 
+    # Kill legacy factory session if present
+    local tmux_session="${PROJECT_NAME}-factory"
     if tmux has-session -t "$tmux_session" 2>/dev/null; then
         log_info "Killing tmux session '${tmux_session}'..."
         tmux kill-session -t "$tmux_session" 2>/dev/null || true
         log_success "Killed tmux session '${tmux_session}'"
-    else
-        log_info "No tmux session '${tmux_session}' found"
     fi
 }
 
@@ -210,7 +217,7 @@ main() {
     print_header "Claude Factory - Teardown"
 
     # Always kill tmux session first
-    kill_tmux_session
+    kill_tmux_sessions
 
     if [[ "$full_teardown" == "true" ]]; then
         echo -e "${YELLOW}WARNING: Full teardown will:${NC}"

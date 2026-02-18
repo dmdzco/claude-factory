@@ -69,7 +69,7 @@ if [[ ! "$DROID_ID" =~ ^[0-9]+$ ]] || [[ "$DROID_ID" -lt 1 ]] || [[ "$DROID_ID" 
     exit 1
 fi
 
-WORKTREE_DIR="${REPO_PARENT_DIR}/${PROJECT_NAME}-${DROID_ID}"
+WORKTREE_DIR="${REPO_PARENT_DIR}/${PROJECT_NAME}-droid-${DROID_ID}"
 
 # Check if worktree exists
 if [[ ! -d "$WORKTREE_DIR" ]]; then

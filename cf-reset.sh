@@ -83,7 +83,7 @@ check_uncommitted() {
 
     # Check expected paths
     for i in $(seq 1 "$NUM_DROIDS"); do
-        local worktree_path="${REPO_PARENT_DIR}/${PROJECT_NAME}-${i}"
+        local worktree_path="${REPO_PARENT_DIR}/${PROJECT_NAME}-droid-${i}"
         if [[ -d "$worktree_path" ]]; then
             local changes
             changes=$(cd "$worktree_path" && git status --porcelain 2>/dev/null | wc -l | tr -d ' ')
@@ -96,7 +96,7 @@ check_uncommitted() {
 
     # Also check worktrees at unexpected paths
     while IFS=$'\t' read -r droid_num wt_path; do
-        local expected="${REPO_PARENT_DIR}/${PROJECT_NAME}-${droid_num}"
+        local expected="${REPO_PARENT_DIR}/${PROJECT_NAME}-droid-${droid_num}"
         if [[ "$wt_path" != "$expected" ]] && [[ -d "$wt_path" ]]; then
             local changes
             changes=$(cd "$wt_path" && git status --porcelain 2>/dev/null | wc -l | tr -d ' ')
@@ -118,7 +118,7 @@ remove_all_droid_worktrees() {
 
     # 1. Remove worktrees at expected paths
     for i in $(seq 1 "$NUM_DROIDS"); do
-        local worktree_path="${REPO_PARENT_DIR}/${PROJECT_NAME}-${i}"
+        local worktree_path="${REPO_PARENT_DIR}/${PROJECT_NAME}-droid-${i}"
         if [[ -d "$worktree_path" ]]; then
             log_info "Removing worktree: ${worktree_path}"
             git worktree remove "$worktree_path" --force 2>/dev/null || {
@@ -146,10 +146,10 @@ remove_all_droid_worktrees() {
 
     # 4. Clean up any leftover .git/worktrees metadata
     for i in $(seq 1 "$NUM_DROIDS"); do
-        local meta=".git/worktrees/${PROJECT_NAME}-${i}"
+        local meta=".git/worktrees/${PROJECT_NAME}-droid-${i}"
         if [[ -d "$meta" ]]; then
             rm -rf "$meta"
-            log_info "  Cleaned metadata: ${PROJECT_NAME}-${i}"
+            log_info "  Cleaned metadata: ${PROJECT_NAME}-droid-${i}"
         fi
     done
 

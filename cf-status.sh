@@ -70,8 +70,8 @@ check_worktree_status() {
     printf "%-20s %-10s %-30s %-15s\n" "─────" "──────" "──────" "──────"
 
     for i in $(seq 1 $NUM_DROIDS); do
-        local worktree_path="${REPO_PARENT_DIR}/${PROJECT_NAME}-${i}"
-        local name="${PROJECT_NAME}-${i}"
+        local worktree_path="${REPO_PARENT_DIR}/${PROJECT_NAME}-droid-${i}"
+        local name="${PROJECT_NAME}-droid-${i}"
         local exists="no"
         local branch="-"
         local status="-"
@@ -160,7 +160,7 @@ show_quick_commands() {
     echo ""
     echo "Manual droid start:"
     for i in $(seq 1 $NUM_DROIDS); do
-        echo "  cd ${REPO_PARENT_DIR}/${PROJECT_NAME}-${i} && claude --dangerously-skip-permissions"
+        echo "  cd ${REPO_PARENT_DIR}/${PROJECT_NAME}-droid-${i} && claude --dangerously-skip-permissions"
     done
     echo ""
 }

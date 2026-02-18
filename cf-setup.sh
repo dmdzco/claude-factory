@@ -125,14 +125,14 @@ setup_worktrees() {
     log_info "Base branch: $base_branch"
 
     for i in $(seq 1 $NUM_DROIDS); do
-        local worktree_path="${REPO_PARENT_DIR}/${PROJECT_NAME}-${i}"
+        local worktree_path="${REPO_PARENT_DIR}/${PROJECT_NAME}-droid-${i}"
         local branch_name="feat/droid-${i}-workspace"
 
         if [[ -d "$worktree_path" ]]; then
-            log_info "Worktree already exists: ${PROJECT_NAME}-${i}"
+            log_info "Worktree already exists: ${PROJECT_NAME}-droid-${i}"
 
             if git worktree list | grep -q "$worktree_path"; then
-                log_success "Verified worktree: ${PROJECT_NAME}-${i}"
+                log_success "Verified worktree: ${PROJECT_NAME}-droid-${i}"
             else
                 log_warning "Directory exists but is not a worktree. Cleaning up..."
                 rm -rf "$worktree_path"
@@ -214,7 +214,7 @@ print_summary() {
     echo ""
     echo "Droid Worktrees:"
     for i in $(seq 1 $NUM_DROIDS); do
-        echo "  - Droid ${i}: ${REPO_PARENT_DIR}/${PROJECT_NAME}-${i}"
+        echo "  - Droid ${i}: ${REPO_PARENT_DIR}/${PROJECT_NAME}-droid-${i}"
     done
     echo ""
     echo -e "${GREEN}Run ./cf-dispatch.sh to open all droid terminals!${NC}"
