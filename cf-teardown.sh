@@ -146,6 +146,19 @@ remove_branches() {
     done
 }
 
+kill_tmux_session() {
+    # Load project name for session naming
+    local tmux_session="${PROJECT_NAME}-factory"
+
+    if tmux has-session -t "$tmux_session" 2>/dev/null; then
+        log_info "Killing tmux session '${tmux_session}'..."
+        tmux kill-session -t "$tmux_session" 2>/dev/null || true
+        log_success "Killed tmux session '${tmux_session}'"
+    else
+        log_info "No tmux session '${tmux_session}' found"
+    fi
+}
+
 remove_coordination_state() {
     print_header "Cleaning Coordination State"
 
@@ -196,11 +209,15 @@ main() {
 
     print_header "Claude Factory - Teardown"
 
+    # Always kill tmux session first
+    kill_tmux_session
+
     if [[ "$full_teardown" == "true" ]]; then
         echo -e "${YELLOW}WARNING: Full teardown will:${NC}"
-        echo "  1. Remove all Git worktrees"
-        echo "  2. Delete workspace branches"
-        echo "  3. Clear coordination state"
+        echo "  1. Kill tmux session"
+        echo "  2. Remove all Git worktrees"
+        echo "  3. Delete workspace branches"
+        echo "  4. Clear coordination state"
         echo ""
 
         if ! check_uncommitted_changes && [[ "$force" != "true" ]]; then

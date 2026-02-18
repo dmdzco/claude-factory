@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #===============================================================================
 # Claude Factory - Task Dispatch Script
-# Opens terminal tabs with Claude in each worktree (always interactive)
+# Opens droids in tmux, pairing every 2 agents in a single window
 #===============================================================================
 
 set -euo pipefail
@@ -34,6 +34,9 @@ if [[ -z "${TARGET_REPO_PATH:-}" ]]; then
 fi
 REPO_PARENT_DIR="$(dirname "$TARGET_REPO_PATH")"
 
+# tmux session name
+TMUX_SESSION="${PROJECT_NAME}-factory"
+
 #-------------------------------------------------------------------------------
 # Helper Functions
 #-------------------------------------------------------------------------------
@@ -45,7 +48,7 @@ log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
 print_usage() {
     cat << EOF
-${CYAN}Claude Factory - Task Dispatcher${NC}
+${CYAN}Claude Factory - Task Dispatcher (tmux)${NC}
 
 Usage:
   $(basename "$0") [OPTIONS]
@@ -57,169 +60,135 @@ Options:
   -h, --help           Show this help
 
 Examples:
-  # Open all droid terminals (interactive mode)
+  # Open all droids in tmux (paired 2 per window)
   $(basename "$0")
 
-  # Open specific droid
+  # Open specific droid in its own tmux window
   $(basename "$0") --droid 1
 
   # Use a different model
   $(basename "$0") --model opus
 
+tmux Controls:
+  Ctrl-b w          List all windows
+  Ctrl-b n / p      Next / previous window
+  Ctrl-b <arrow>    Switch pane within a window
+  Ctrl-b d          Detach from session
+
+Reattach:
+  tmux attach -t ${TMUX_SESSION}
+
 EOF
 }
 
 #-------------------------------------------------------------------------------
-# Terminal Tab Functions
+# tmux Dispatch
 #-------------------------------------------------------------------------------
 
-open_terminal_tabs() {
+dispatch_droids_tmux() {
     local specific_droid="${1:-}"
 
-    log_info "Opening terminal tabs for droids (interactive mode)..."
-    echo ""
+    # Check for tmux
+    if ! command -v tmux &> /dev/null; then
+        log_error "tmux not found. Install with: brew install tmux (macOS) or apt-get install tmux (Linux)"
+        exit 1
+    fi
 
-    # Build the claude command - always interactive
+    # Kill existing session if present
+    if tmux has-session -t "$TMUX_SESSION" 2>/dev/null; then
+        log_warning "Existing tmux session '${TMUX_SESSION}' found. Killing it..."
+        tmux kill-session -t "$TMUX_SESSION" 2>/dev/null || true
+    fi
+
     local claude_cmd="claude --dangerously-skip-permissions --model ${DEFAULT_MODEL}"
 
-    # Determine which droids to open
-    local start_droid=1
-    local end_droid=$NUM_DROIDS
+    # Handle single-droid dispatch
     if [[ -n "$specific_droid" ]]; then
-        start_droid=$specific_droid
-        end_droid=$specific_droid
-    fi
-
-    # Detect terminal application
-    if [[ "${TERM_PROGRAM:-}" == "Apple_Terminal" ]]; then
-        open_macos_terminal "$claude_cmd" "$start_droid" "$end_droid"
-    elif [[ "${TERM_PROGRAM:-}" == "iTerm.app" ]] || [[ "${TERM_PROGRAM:-}" == "iTerm" ]]; then
-        open_iterm "$claude_cmd" "$start_droid" "$end_droid"
-    else
-        open_fallback "$claude_cmd" "$start_droid" "$end_droid"
-    fi
-
-    echo ""
-    log_success "Terminal tabs opened! All droids in interactive mode."
-}
-
-open_macos_terminal() {
-    local claude_cmd="$1"
-    local start_droid="$2"
-    local end_droid="$3"
-
-    # First droid opens new window
-    local i=$start_droid
-    local worktree_path="${REPO_PARENT_DIR}/${PROJECT_NAME}-${i}"
-
-    if [[ ! -d "$worktree_path" ]]; then
-        log_error "Worktree not found: $worktree_path"
-        log_error "Run ./cf-setup.sh first"
-        exit 1
-    fi
-
-    local cmd="cd '$worktree_path' && $claude_cmd"
-
-    osascript -e "
-        tell application \"Terminal\"
-            activate
-            do script \"$cmd\"
-        end tell
-    " 2>/dev/null || log_warning "Could not open window for Droid ${i}"
-    log_success "Opened tab for Droid ${i} (${PROJECT_NAME}-${i})"
-
-    # Remaining droids as tabs
-    for i in $(seq $((start_droid + 1)) $end_droid); do
-        worktree_path="${REPO_PARENT_DIR}/${PROJECT_NAME}-${i}"
-
+        local worktree_path="${REPO_PARENT_DIR}/${PROJECT_NAME}-${specific_droid}"
         if [[ ! -d "$worktree_path" ]]; then
-            log_warning "Worktree not found: $worktree_path - skipping"
+            log_error "Worktree not found: $worktree_path"
+            log_error "Run ./cf-setup.sh first"
+            exit 1
+        fi
+
+        tmux new-session -d -s "$TMUX_SESSION" -n "droid-${specific_droid}" -c "$worktree_path"
+        tmux send-keys -t "$TMUX_SESSION:droid-${specific_droid}" "$claude_cmd" C-m
+        log_success "Droid ${specific_droid} launched in tmux window"
+        tmux attach -t "$TMUX_SESSION"
+        return
+    fi
+
+    # Multi-droid dispatch: pair every 2 droids in a window
+    log_info "Launching ${NUM_DROIDS} droids in tmux (2 per window)..."
+    echo ""
+
+    local window_num=0
+    local i=1
+
+    while [[ $i -le $NUM_DROIDS ]]; do
+        local droid_a=$i
+        local droid_b=$((i + 1))
+        local worktree_a="${REPO_PARENT_DIR}/${PROJECT_NAME}-${droid_a}"
+
+        # Validate worktree for droid A
+        if [[ ! -d "$worktree_a" ]]; then
+            log_warning "Worktree not found: $worktree_a - skipping droid ${droid_a}"
+            i=$((i + 2))
             continue
         fi
 
-        cmd="cd '$worktree_path' && $claude_cmd"
-
-        osascript -e "
-            tell application \"Terminal\"
-                activate
-                tell application \"System Events\" to keystroke \"t\" using command down
-                delay 0.3
-                do script \"$cmd\" in front window
-            end tell
-        " 2>/dev/null || log_warning "Could not open tab for Droid ${i}"
-        log_success "Opened tab for Droid ${i} (${PROJECT_NAME}-${i})"
-    done
-}
-
-open_iterm() {
-    local claude_cmd="$1"
-    local start_droid="$2"
-    local end_droid="$3"
-
-    # First droid in current window
-    local i=$start_droid
-    local worktree_path="${REPO_PARENT_DIR}/${PROJECT_NAME}-${i}"
-
-    if [[ ! -d "$worktree_path" ]]; then
-        log_error "Worktree not found: $worktree_path"
-        log_error "Run ./cf-setup.sh first"
-        exit 1
-    fi
-
-    local cmd="cd '$worktree_path' && $claude_cmd"
-
-    osascript -e "
-        tell application \"iTerm\"
-            activate
-            tell current window
-                tell current session
-                    write text \"$cmd\"
-                end tell
-            end tell
-        end tell
-    " 2>/dev/null || log_warning "Could not open tab for Droid ${i}"
-    log_success "Opened tab for Droid ${i} (${PROJECT_NAME}-${i})"
-
-    # Remaining droids as new tabs
-    for i in $(seq $((start_droid + 1)) $end_droid); do
-        worktree_path="${REPO_PARENT_DIR}/${PROJECT_NAME}-${i}"
-
-        if [[ ! -d "$worktree_path" ]]; then
-            log_warning "Worktree not found: $worktree_path - skipping"
-            continue
+        if [[ $window_num -eq 0 ]]; then
+            # First window: create the session
+            tmux new-session -d -s "$TMUX_SESSION" -n "droids-${droid_a}" -c "$worktree_a"
+        else
+            # Subsequent windows
+            tmux new-window -t "$TMUX_SESSION" -n "droids-${droid_a}" -c "$worktree_a"
         fi
 
-        cmd="cd '$worktree_path' && $claude_cmd"
+        local window_name="droids-${droid_a}"
 
-        osascript -e "
-            tell application \"iTerm\"
-                activate
-                tell current window
-                    create tab with default profile
-                    tell current session
-                        write text \"$cmd\"
-                    end tell
-                end tell
-            end tell
-        " 2>/dev/null || log_warning "Could not open tab for Droid ${i}"
-        log_success "Opened tab for Droid ${i} (${PROJECT_NAME}-${i})"
+        # Start droid A in the first pane
+        tmux send-keys -t "$TMUX_SESSION:${window_name}" "$claude_cmd" C-m
+        log_success "Droid ${droid_a} → window '${window_name}' (left pane)"
+
+        # If there's a droid B, split and start it
+        if [[ $droid_b -le $NUM_DROIDS ]]; then
+            local worktree_b="${REPO_PARENT_DIR}/${PROJECT_NAME}-${droid_b}"
+
+            if [[ -d "$worktree_b" ]]; then
+                # Rename window to reflect both droids
+                tmux rename-window -t "$TMUX_SESSION:${window_name}" "droids-${droid_a}-${droid_b}"
+                window_name="droids-${droid_a}-${droid_b}"
+
+                # Split horizontally (side by side)
+                tmux split-window -h -t "$TMUX_SESSION:${window_name}" -c "$worktree_b"
+                tmux send-keys -t "$TMUX_SESSION:${window_name}.1" "$claude_cmd" C-m
+
+                # Even out the panes
+                tmux select-layout -t "$TMUX_SESSION:${window_name}" even-horizontal
+
+                log_success "Droid ${droid_b} → window '${window_name}' (right pane)"
+            else
+                log_warning "Worktree not found: $worktree_b - skipping droid ${droid_b}"
+            fi
+        fi
+
+        window_num=$((window_num + 1))
+        i=$((i + 2))
     done
-}
 
-open_fallback() {
-    local claude_cmd="$1"
-    local start_droid="$2"
-    local end_droid="$3"
+    # Select the first window
+    tmux select-window -t "$TMUX_SESSION:0"
 
-    log_warning "Unknown terminal. Run these commands manually in separate tabs:"
+    echo ""
+    log_success "All droids launched in tmux session '${TMUX_SESSION}'"
+    echo ""
+    log_info "Attaching to tmux session..."
+    log_info "Detach with: Ctrl-b d | Reattach with: tmux attach -t ${TMUX_SESSION}"
     echo ""
 
-    for i in $(seq $start_droid $end_droid); do
-        local worktree_path="${REPO_PARENT_DIR}/${PROJECT_NAME}-${i}"
-        echo "  # Droid ${i}:"
-        echo "  cd '$worktree_path' && $claude_cmd"
-        echo ""
-    done
+    # Attach to the session
+    tmux attach -t "$TMUX_SESSION"
 }
 
 #-------------------------------------------------------------------------------
@@ -258,7 +227,6 @@ main() {
                 exit 1
                 ;;
             *)
-                # Ignore any positional arguments (prompts no longer used)
                 shift
                 ;;
         esac
@@ -269,19 +237,20 @@ main() {
 
     echo ""
     echo -e "${CYAN}═══════════════════════════════════════════════════════════════${NC}"
-    echo -e "${CYAN}  Claude Factory - Opening Droids (Interactive Mode)${NC}"
+    echo -e "${CYAN}  Claude Factory - Dispatching Droids (tmux)${NC}"
     echo -e "${CYAN}═══════════════════════════════════════════════════════════════${NC}"
     echo ""
     log_info "Project: ${PROJECT_NAME}"
     log_info "Model: ${DEFAULT_MODEL}"
+    log_info "Session: ${TMUX_SESSION}"
     if [[ -n "$droid_id" ]]; then
         log_info "Droid: ${droid_id}"
     else
-        log_info "Droids: 1-${NUM_DROIDS}"
+        log_info "Droids: 1-${NUM_DROIDS} (2 per window)"
     fi
     echo ""
 
-    open_terminal_tabs "$droid_id"
+    dispatch_droids_tmux "$droid_id"
 }
 
 main "$@"

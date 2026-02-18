@@ -52,7 +52,7 @@ print_header "Claude Factory - Full Start"
 echo "This will:"
 echo "  1. Create Git worktrees (if needed)"
 echo "  2. Initialize coordination state"
-echo "  3. Open ${NUM_DROIDS} terminal tabs with Claude sessions"
+echo "  3. Launch ${NUM_DROIDS} droids in tmux (2 per window)"
 echo ""
 
 # Step 1: Run setup
@@ -65,27 +65,29 @@ if [[ ! -f "${SCRIPT_DIR}/factory-state.json" ]]; then
     "${SCRIPT_DIR}/cf-init-coordination.sh"
 fi
 
-# Step 3: Open terminal tabs with Claude sessions
-print_header "Opening Droid Terminals"
+# Step 3: Launch droids in tmux
+print_header "Launching Droids in tmux"
 
-# Use cf-dispatch.sh to handle terminal tab opening
-"${SCRIPT_DIR}/cf-dispatch.sh"
+TMUX_SESSION="${PROJECT_NAME}-factory"
 
-print_header "Factory Started!"
-
-echo -e "${GREEN}${NUM_DROIDS} Claude droids are now running in separate tabs.${NC}"
+echo -e "${GREEN}${NUM_DROIDS} Claude droids will launch in tmux (2 per window).${NC}"
 echo ""
 echo "Each droid:"
 echo "  - Has its own Git branch (feat/droid-X-workspace)"
 echo "  - Coordinates via factory-state.json (cf-claim.sh/cf-release.sh)"
 echo "  - Runs with --dangerously-skip-permissions"
 echo ""
-echo "Tips:"
-echo "  - Give each droid a different task/area to work on"
-echo "  - They'll claim files via cf-claim.sh to avoid conflicts"
-echo "  - Type directly in each tab to interact with that droid"
+echo "tmux Controls:"
+echo "  Ctrl-b w          List all windows"
+echo "  Ctrl-b n / p      Next / previous window"
+echo "  Ctrl-b <arrow>    Switch pane within a window"
+echo "  Ctrl-b d          Detach from session"
 echo ""
 echo "Commands:"
-echo "  ./cf-status.sh      - Check all droids"
-echo "  ./cf-teardown.sh    - Stop everything"
+echo "  tmux attach -t ${TMUX_SESSION}  - Reattach to session"
+echo "  ./cf-status.sh                  - Check all droids"
+echo "  ./cf-teardown.sh                - Stop everything"
 echo ""
+
+# Use cf-dispatch.sh to handle tmux session creation
+"${SCRIPT_DIR}/cf-dispatch.sh"
