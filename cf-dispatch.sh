@@ -126,14 +126,26 @@ dispatch_droids_tmux() {
         end_droid=$specific_droid
     fi
 
-    log_info "Launching droids in separate terminal tabs (1 per tab)..."
+    # Detect if we're in a remote/headless session (SSH, no GUI)
+    local remote_mode=false
+    if [[ -n "${SSH_CONNECTION:-}" ]] || [[ -z "${TERM_PROGRAM:-}" ]] || [[ "${TERM_PROGRAM:-}" != "iTerm.app" && "${TERM_PROGRAM:-}" != "Apple_Terminal" ]]; then
+        remote_mode=true
+    fi
+
+    if [[ "$remote_mode" == true ]]; then
+        log_info "Remote/headless session detected — using unified tmux session"
+        log_info "Launching droids as tmux windows in session '${TMUX_SESSION}'..."
+    else
+        log_info "Launching droids in separate terminal tabs (1 per tab)..."
+    fi
     echo ""
 
     local i=$start_droid
+    local first_window=true
 
     while [[ $i -le $end_droid ]]; do
         local worktree="${REPO_PARENT_DIR}/${PROJECT_NAME}-droid-${i}"
-        local session_name="${PROJECT_NAME}-droid-${i}"
+        local window_name="droid-${i}"
 
         # Validate worktree
         if [[ ! -d "$worktree" ]]; then
@@ -142,52 +154,82 @@ dispatch_droids_tmux() {
             continue
         fi
 
-        # Kill existing tmux session for this droid if present
-        if tmux has-session -t "$session_name" 2>/dev/null; then
-            log_warning "Killing existing tmux session '${session_name}'..."
-            tmux kill-session -t "$session_name" 2>/dev/null || true
-        fi
+        if [[ "$remote_mode" == true ]]; then
+            # --- Remote mode: all droids as windows in one tmux session ---
+            if [[ "$first_window" == true ]]; then
+                # Kill existing unified session if present
+                if tmux has-session -t "$TMUX_SESSION" 2>/dev/null; then
+                    log_warning "Killing existing tmux session '${TMUX_SESSION}'..."
+                    tmux kill-session -t "$TMUX_SESSION" 2>/dev/null || true
+                fi
+                # Create session with first droid
+                tmux new-session -d -s "$TMUX_SESSION" -n "$window_name" -c "$worktree"
+                tmux send-keys -t "${TMUX_SESSION}:${window_name}" "unset GH_TOKEN && $claude_cmd" C-m
+                first_window=false
+            else
+                # Add subsequent droids as new windows in the same session
+                tmux new-window -t "$TMUX_SESSION" -n "$window_name" -c "$worktree"
+                tmux send-keys -t "${TMUX_SESSION}:${window_name}" "unset GH_TOKEN && $claude_cmd" C-m
+            fi
+            log_success "Droid ${i} → tmux window '${window_name}' in session '${TMUX_SESSION}'"
+        else
+            # --- Local mode: separate sessions + macOS terminal tabs ---
+            local session_name="${PROJECT_NAME}-droid-${i}"
 
-        # Create a detached tmux session for this droid
-        tmux new-session -d -s "$session_name" -c "$worktree"
-        tmux send-keys -t "$session_name" "unset GH_TOKEN && $claude_cmd" C-m
+            # Kill existing tmux session for this droid if present
+            if tmux has-session -t "$session_name" 2>/dev/null; then
+                log_warning "Killing existing tmux session '${session_name}'..."
+                tmux kill-session -t "$session_name" 2>/dev/null || true
+            fi
 
-        # Open a new terminal tab and attach to this droid's tmux session
-        if [[ "$TERM_PROGRAM" == "iTerm.app" ]]; then
-            osascript -e "
-                tell application \"iTerm\"
-                    tell current window
-                        create tab with default profile
-                        tell current session
-                            write text \"tmux attach -t ${session_name}\"
+            # Create a detached tmux session for this droid
+            tmux new-session -d -s "$session_name" -c "$worktree"
+            tmux send-keys -t "$session_name" "unset GH_TOKEN && $claude_cmd" C-m
+
+            # Open a new terminal tab and attach to this droid's tmux session
+            if [[ "$TERM_PROGRAM" == "iTerm.app" ]]; then
+                osascript -e "
+                    tell application \"iTerm\"
+                        tell current window
+                            create tab with default profile
+                            tell current session
+                                write text \"tmux attach -t ${session_name}\"
+                            end tell
                         end tell
                     end tell
-                end tell
-            " 2>/dev/null
-        else
-            # Apple Terminal (default)
-            osascript -e "
-                tell application \"Terminal\"
-                    activate
-                    tell application \"System Events\" to keystroke \"t\" using command down
-                    delay 0.3
-                    do script \"tmux attach -t ${session_name}\" in front window
-                end tell
-            " 2>/dev/null
+                " 2>/dev/null
+            else
+                # Apple Terminal (default)
+                osascript -e "
+                    tell application \"Terminal\"
+                        activate
+                        tell application \"System Events\" to keystroke \"t\" using command down
+                        delay 0.3
+                        do script \"tmux attach -t ${session_name}\" in front window
+                    end tell
+                " 2>/dev/null
+            fi
+            log_success "Droid ${i} → terminal tab (tmux session '${session_name}')"
+            sleep 0.5
         fi
 
-        log_success "Droid ${i} → terminal tab (tmux session '${session_name}')"
-
         i=$((i + 1))
-        # Small delay between tabs to let Terminal.app keep up
-        sleep 0.5
     done
 
     echo ""
-    log_success "All droids launched in separate terminal tabs"
-    echo ""
-    log_info "Switch tabs: Cmd+1-${NUM_DROIDS}"
-    log_info "Each tab runs its own tmux session (detach: Ctrl-b d)"
+    if [[ "$remote_mode" == true ]]; then
+        log_success "All droids launched in tmux session '${TMUX_SESSION}'"
+        echo ""
+        log_info "Attach with:  tmux attach -t ${TMUX_SESSION}"
+        log_info "Switch droids: Ctrl-b, <window number>  (0=${start_droid}, 1=$((start_droid+1)), ...)"
+        log_info "List windows:  Ctrl-b, w"
+        log_info "Detach:        Ctrl-b, d"
+    else
+        log_success "All droids launched in separate terminal tabs"
+        echo ""
+        log_info "Switch tabs: Cmd+1-${NUM_DROIDS}"
+        log_info "Each tab runs its own tmux session (detach: Ctrl-b d)"
+    fi
     echo ""
 }
 
