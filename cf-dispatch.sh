@@ -34,6 +34,9 @@ if [[ -z "${TARGET_REPO_PATH:-}" ]]; then
 fi
 REPO_PARENT_DIR="$(dirname "$TARGET_REPO_PATH")"
 
+# Clear Claude Code nesting-detection env vars so droids can launch inside tmux
+unset CLAUDECODE CLAUDE_CODE_ENTRYPOINT CLAUDE_CODE_TEAMMATE_MODE 2>/dev/null || true
+
 # tmux session name
 TMUX_SESSION="${PROJECT_NAME}-factory"
 
@@ -164,12 +167,12 @@ dispatch_droids_tmux() {
                 fi
                 # Create session with first droid
                 tmux new-session -d -s "$TMUX_SESSION" -n "$window_name" -c "$worktree"
-                tmux send-keys -t "${TMUX_SESSION}:${window_name}" "unset GH_TOKEN && $claude_cmd" C-m
+                tmux send-keys -t "${TMUX_SESSION}:${window_name}" "unset GH_TOKEN CLAUDECODE CLAUDE_CODE_ENTRYPOINT CLAUDE_CODE_TEAMMATE_MODE && $claude_cmd" C-m
                 first_window=false
             else
                 # Add subsequent droids as new windows in the same session
                 tmux new-window -t "$TMUX_SESSION" -n "$window_name" -c "$worktree"
-                tmux send-keys -t "${TMUX_SESSION}:${window_name}" "unset GH_TOKEN && $claude_cmd" C-m
+                tmux send-keys -t "${TMUX_SESSION}:${window_name}" "unset GH_TOKEN CLAUDECODE CLAUDE_CODE_ENTRYPOINT CLAUDE_CODE_TEAMMATE_MODE && $claude_cmd" C-m
             fi
             log_success "Droid ${i} → tmux window '${window_name}' in session '${TMUX_SESSION}'"
         else
@@ -184,7 +187,7 @@ dispatch_droids_tmux() {
 
             # Create a detached tmux session for this droid
             tmux new-session -d -s "$session_name" -c "$worktree"
-            tmux send-keys -t "$session_name" "unset GH_TOKEN && $claude_cmd" C-m
+            tmux send-keys -t "$session_name" "unset GH_TOKEN CLAUDECODE CLAUDE_CODE_ENTRYPOINT CLAUDE_CODE_TEAMMATE_MODE && $claude_cmd" C-m
 
             # Open a new terminal tab and attach to this droid's tmux session
             if [[ "$TERM_PROGRAM" == "iTerm.app" ]]; then

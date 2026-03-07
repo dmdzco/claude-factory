@@ -103,7 +103,7 @@ case "$MODE" in
     claude)
         echo -e "${BLUE}Starting Claude session... (type 'exit' to leave)${NC}"
         echo ""
-        cd "$WORKTREE_DIR" && claude --dangerously-skip-permissions --model "$DEFAULT_MODEL"
+        cd "$WORKTREE_DIR" && unset GH_TOKEN CLAUDECODE CLAUDE_CODE_ENTRYPOINT CLAUDE_CODE_TEAMMATE_MODE && claude --dangerously-skip-permissions --model "$DEFAULT_MODEL"
         ;;
 
     *)

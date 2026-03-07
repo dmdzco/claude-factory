@@ -81,7 +81,7 @@ echo ""
 
 # Start Claude in the worktree directory
 cd "$WORKTREE_DIR"
-unset GH_TOKEN
+unset GH_TOKEN CLAUDECODE CLAUDE_CODE_ENTRYPOINT CLAUDE_CODE_TEAMMATE_MODE
 claude --dangerously-skip-permissions --model "$DEFAULT_MODEL"
 
 # If Claude exits, show message
